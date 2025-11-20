@@ -1,5 +1,34 @@
 // booking.js - Quản lý đặt lịch sửa xe
+
+/**
+ * ✅ Tạo URL Cloudinary từ tên file trong database
+ * Function này ở GLOBAL SCOPE để có thể dùng được ở mọi nơi
+ */
+function getCloudinaryImageUrl(serviceImage) {
+    if (!serviceImage) {
+        return 'images/service-placeholder.jpg';
+    }
+    
+    // Nếu đã là URL đầy đủ
+    if (serviceImage.startsWith('http://') || serviceImage.startsWith('https://')) {
+        return serviceImage;
+    }
+    
+    // Tạo URL Cloudinary
+    const CLOUDINARY_BASE_URL = 'https://res.cloudinary.com/dqdlBursa/image/upload';
+    const FOLDER = 'services';
+    
+    // Bỏ extension (.jpg, .png)
+    const filename = serviceImage.replace(/\.[^/.]+$/, '');
+    
+    console.log('🖼️ Cloudinary URL:', CLOUDINARY_BASE_URL + '/' + FOLDER + '/' + filename);
+    
+    return CLOUDINARY_BASE_URL + '/' + FOLDER + '/' + filename;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+
+
     // Sử dụng API_CONFIG từ config.js (được load trước)
     const API_BASE_URL = window.API_CONFIG ? window.API_CONFIG.BASE_URL : 'http://localhost:3001/api';
     
@@ -65,15 +94,35 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Kiểm tra trạng thái đăng nhập
-    checkLoginStatus();
+    // checkLoginStatus();
     
+    // Hiển thị form booking ngay cả khi chưa đăng nhập (để người dùng có thể xem dịch vụ)
+    if (loginRequiredAlert) loginRequiredAlert.style.display = 'none';
+    if (bookingFormContainer) {
+        bookingFormContainer.style.display = 'flex';
+        console.log('✅ bookingFormContainer đã được hiển thị');
+    }
+    
+    // Đảm bảo stepContent1 được hiển thị
+    const stepContent1 = document.getElementById('stepContent1');
+    if (stepContent1) {
+        stepContent1.classList.add('active');
+        stepContent1.style.display = 'block';
+        console.log('✅ stepContent1 đã được kích hoạt');
+    } else {
+        console.error('❌ Không tìm thấy stepContent1');
+    }
+    
+    //Load dịch vụ ngay khi trang tải
+    loadServices();
+
     // Thêm handler lỗi toàn cục cho hình ảnh
-    document.addEventListener('error', function(e) {
-        if (e.target.tagName.toLowerCase() === 'img') {
-            console.log('Lỗi tải hình:', e.target.src);
-            e.target.src = 'images/service-placeholder.jpg';
-        }
-    }, true);
+    // document.addEventListener('error', function(e) {
+    //     if (e.target.tagName.toLowerCase() === 'img') {
+    //         console.log('Lỗi tải hình:', e.target.src);
+    //         //e.target.src = 'images/service-placeholder.jpg';
+    //     }
+    // }, true);
     
     // Thêm CSS cho giao diện cải tiến
     addImprovedTimeSlotStyles();
@@ -159,8 +208,13 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     async function loadServices() {
         try {
+            console.log('🔄 Bắt đầu loadServices...');
             const serviceList = document.getElementById('serviceList');
-            if (!serviceList) return;
+            if (!serviceList) {
+                console.error('❌ Không tìm thấy serviceList element');
+                return;
+            }
+            console.log('✅ Tìm thấy serviceList:', serviceList);
             
             // Hiển thị trạng thái loading
             serviceList.innerHTML = `
@@ -177,35 +231,46 @@ document.addEventListener('DOMContentLoaded', function() {
             let result;
             let error1;
             
+            console.log('🌐 Đang gọi API:', `${API_BASE_URL}/services`);
+            
             try {
                 // Thử endpoint đầu tiên
                 response = await fetch(`${API_BASE_URL}/services`);
+                console.log('📡 Response status:', response.status, response.statusText);
+                
                 if (response.ok) {
                     result = await response.json();
+                    console.log('✅ API trả về dữ liệu:', result);
+                } else {
+                    console.warn('⚠️ Response không OK:', response.status);
                 }
             } catch (err) {
                 // Lưu lỗi đầu tiên để hiển thị nếu cả hai endpoint đều thất bại
                 error1 = err;
-                console.warn('Không thể tải dịch vụ từ endpoint đầu tiên:', err.message);
+                console.error('❌ Lỗi khi gọi endpoint đầu tiên:', err);
             }
             
             // Nếu endpoint đầu tiên thất bại, thử endpoint thứ hai
             if (!result) {
+                console.log('🔄 Thử endpoint thứ hai:', `${API_BASE_URL}/booking/services`);
                 try {
                     response = await fetch(`${API_BASE_URL}/booking/services`);
+                    console.log('📡 Response status (endpoint 2):', response.status, response.statusText);
+                    
                     if (response.ok) {
                         result = await response.json();
+                        console.log('✅ API trả về dữ liệu (endpoint 2):', result);
                     } else {
                         throw new Error(`Lỗi kết nối: ${response.status}`);
                     }
                 } catch (err) {
-                    console.warn('Không thể tải dịch vụ từ endpoint thứ hai:', err.message);
+                    console.error('❌ Lỗi khi gọi endpoint thứ hai:', err);
                     // Nếu cả hai endpoint đều thất bại, ném lỗi
                     throw error1 || err;
                 }
             }
             
-            console.log('Kết quả API dịch vụ:', result);
+            console.log('📦 Kết quả API dịch vụ (final):', result);
             
             // Xử lý nhiều cấu trúc phản hồi có thể có
             let services;
@@ -250,64 +315,83 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function renderServiceList(services) {
         const serviceList = document.getElementById('serviceList');
-        if (!serviceList) return;
+        if (!serviceList) {
+            console.error('❌ Không tìm thấy #serviceList');
+            return;
+        }
+        
+        // Kiểm tra xem stepContent1 có đang active không
+        const stepContent1 = document.getElementById('stepContent1');
+        if (stepContent1) {
+            console.log('✅ stepContent1 found, classes:', stepContent1.className);
+            if (!stepContent1.classList.contains('active')) {
+                console.warn('⚠️ stepContent1 không active, đang thêm class active');
+                stepContent1.classList.add('active');
+            }
+        } else {
+            console.error('❌ Không tìm thấy stepContent1');
+        }
+        
+        // FORCE STYLE - Đảm bảo serviceList hiển thị đúng
+        serviceList.style.cssText = 'display: flex !important; flex-wrap: wrap !important; width: 100% !important; padding: 20px; background: white; visibility: visible !important; opacity: 1 !important;';
+        serviceList.classList.add('row');
+        serviceList.classList.remove('d-none'); // Xóa class ẩn nếu có
+        
+        // Đảm bảo parent container cũng hiển thị
+        const bookingContent = serviceList.closest('.booking-content');
+        if (bookingContent) {
+            bookingContent.style.display = 'block';
+        }
         
         if (!services || services.length === 0) {
             serviceList.innerHTML = `
                 <div class="col-12 text-center">
-                    <div class="alert alert-info">
-                        Hiện tại chưa có dịch vụ nào.
-                    </div>
+                    <div class="alert alert-info">Hiện tại chưa có dịch vụ nào.</div>
                 </div>
             `;
             return;
         }
         
-        console.log('Cấu trúc dữ liệu dịch vụ đầu tiên:', services[0]);
+        console.log('✅ Rendering', services.length, 'services...');
+        console.log('First service:', services[0]);
         
         let html = '';
         
-        services.forEach(service => {
-            // Xác định trường dữ liệu cần thiết - hỗ trợ nhiều cấu trúc dữ liệu
+        services.forEach((service, index) => {
             const serviceId = service.ServiceID || service.serviceId || service.id;
             const serviceName = service.ServiceName || service.serviceName || service.name;
             const serviceDesc = service.Description || service.description || '';
             const servicePrice = service.Price || service.price || 0;
             const serviceTime = service.EstimatedTime || service.estimatedTime || service.time || 0;
+            const serviceImage = service.ServiceImage || service.serviceImage || service.image || '';
             
-            // Fix đường dẫn hình ảnh
-            let serviceImagePath;
-            const serviceImage = service.ServiceImage || service.serviceImage || service.image;
-            if (serviceImage) {
-                if (serviceImage.startsWith('http')) {
-                    serviceImagePath = serviceImage;
-                } else if (serviceImage.startsWith('images/')) {
-                    serviceImagePath = serviceImage;
-                } else {
-                    serviceImagePath = `images/services/${serviceImage}`;
-                }
-            } else {
-                serviceImagePath = 'images/service-placeholder.jpg';
-            }
+            // ✅ SỬA: Dùng getCloudinaryImageUrl để tạo URL đầy đủ
+            const serviceImageUrl = getCloudinaryImageUrl(serviceImage);
             
             const isSelected = bookingData.services.some(s => s.id === serviceId);
             
+            // INLINE STYLE - KHÔNG PHỤ THUỘC CSS
             html += `
-                <div class="col-md-6 mb-3">
-                    <div class="service-card ${isSelected ? 'selected' : ''}" data-id="${serviceId}">
-                        <div class="form-check">
-                            <input class="form-check-input service-checkbox" type="checkbox" ${isSelected ? 'checked' : ''} 
-                                id="service-${serviceId}" data-id="${serviceId}">
-                        </div>
-                        <div class="d-flex">
-                            <img src="${serviceImagePath}" alt="${serviceName}" class="service-image" onerror="this.src='images/service-placeholder.jpg'">
-                            <div class="service-details">
-                                <h5>${serviceName}</h5>
-                                <p class="service-desc mb-2">${serviceDesc || 'Không có mô tả'}</p>
-                                <div class="d-flex justify-content-between">
-                                    <span class="service-price">${formatCurrency(servicePrice)}</span>
-                                    <span class="service-time"><i class="bi bi-clock me-1"></i>${serviceTime} phút</span>
-                                </div>
+                <div class="col-md-6 mb-3" style="padding: 10px;">
+                    <div class="service-card ${isSelected ? 'selected' : ''}" 
+                         data-id="${serviceId}"
+                         style="border: 3px solid #d62828; padding: 20px; border-radius: 10px; background: white; display: flex; align-items: center; gap: 15px; min-height: 120px; cursor: pointer; transition: all 0.3s;">
+                        <input class="form-check-input service-checkbox" 
+                               type="checkbox" 
+                               ${isSelected ? 'checked' : ''} 
+                               id="service-${serviceId}" 
+                               data-id="${serviceId}"
+                               style="width: 24px; height: 24px; cursor: pointer; flex-shrink: 0;">
+                        <img src="${serviceImageUrl}"
+                             onerror="this.src='images/service-placeholder.jpg'" 
+                             alt="${serviceName}" 
+                             style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px; border: 2px solid #d62828; flex-shrink: 0; display: block;">
+                        <div style="flex: 1; min-width: 0;">
+                            <h5 style="margin: 0 0 8px 0; color: #d62828; font-size: 18px;">${serviceName}</h5>
+                            <p style="margin: 0 0 8px 0; color: #666; font-size: 14px;">${serviceDesc || 'Không có mô tả'}</p>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <strong style="color: #d62828; font-size: 18px;">${formatCurrency(servicePrice)}</strong>
+                                <span style="color: #999; font-size: 14px;">⏱️ ${serviceTime} phút</span>
                             </div>
                         </div>
                     </div>
@@ -315,7 +399,28 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         });
         
+        // Đảm bảo serviceList có class row và hiển thị đúng
+        if (!serviceList.classList.contains('row')) {
+            serviceList.classList.add('row');
+        }
+        serviceList.style.display = 'flex';
+        serviceList.style.flexWrap = 'wrap';
+        serviceList.style.width = '100%';
+        serviceList.style.visibility = 'visible';
+        serviceList.style.opacity = '1';
+        serviceList.style.height = 'auto';
+        serviceList.style.minHeight = '200px';
+        
         serviceList.innerHTML = html;
+        
+        console.log('✅ Rendered', services.length, 'services successfully!');
+        console.log('✅ ServiceList HTML length:', html.length);
+        console.log('✅ ServiceList element:', serviceList);
+        console.log('✅ ServiceList computed style:', window.getComputedStyle(serviceList).display);
+        console.log('✅ ServiceList innerHTML preview:', html.substring(0, 200));
+        
+        // Force reflow để đảm bảo browser render lại
+        serviceList.offsetHeight;
         
         // Thêm event listeners cho service cards
         document.querySelectorAll('.service-card').forEach(card => {
@@ -1773,5 +1878,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Xuất các hàm ra global scope để có thể gọi từ bên ngoài
+    window.loadServices = loadServices;
+    window.loadAvailableTimeSlots = loadAvailableTimeSlots;
+
 });
-window.loadAvailableTimeSlots = loadAvailableTimeSlots;

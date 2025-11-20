@@ -425,7 +425,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const token = localStorage.getItem('token');
             
             // Gọi API upload hình ảnh
-            const response = await fetch(`${API_BASE_URL}/images/upload/service/${serviceId}`, {
+            const response = await fetch(`${API_BASE_URL}/upload/service/${serviceId}`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`
