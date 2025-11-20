@@ -373,76 +373,300 @@
     async function handleStep3() {
         console.log('📅 STEP 3: Chọn thời gian');
         
-        const dateInput = document.getElementById('appointmentDate');
+        const dateInput = document.getElementById('bookingDate');
         const timeSlotsContainer = document.getElementById('timeSlots');
+        const mechanicsListContainer = document.createElement('div');
+        mechanicsListContainer.id = 'mechanicsList';
+        mechanicsListContainer.className = 'mechanics-list mt-4';
+        mechanicsListContainer.style.display = 'none';
+        timeSlotsContainer.parentNode.appendChild(mechanicsListContainer);
+        
+        const notesInput = document.getElementById('notes');
         const nextBtn = document.getElementById('nextToStep4');
         const backBtn = document.getElementById('backToStep2');
         
+        let allSlots = [];
         let selectedSlot = null;
+        let selectedMechanic = null;
         
-        // Event: Chọn ngày
+        // Tính thời gian dự kiến
+        const totalServiceTime = bookingData.services.reduce((sum, s) => sum + Number(s.time || 0), 0);
+        const estimatedDuration = totalServiceTime + 10; // +10 phút nghỉ
+        
+        console.log(`⏱ Thời gian dự kiến: ${estimatedDuration}p`);
+        
+        // Set min date
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.setAttribute('min', today);
+        
+        // ================================================================
+        // FUNCTION: Group slots by hour
+        // ================================================================
+        function groupSlotsByHour(slots) {
+            const grouped = {};
+            
+            slots.forEach(slot => {
+                const hour = slot.time.split(':')[0];
+                if (!grouped[hour]) {
+                    grouped[hour] = [];
+                }
+                grouped[hour].push(slot);
+            });
+            
+            return grouped;
+        }
+        
+        // ================================================================
+        // FUNCTION: Render khung giờ (tầng 1)
+        // ================================================================
+        function renderTimeSlots(slots) {
+            const grouped = groupSlotsByHour(slots);
+            const hours = Object.keys(grouped).sort();
+            
+            if (hours.length === 0) {
+                timeSlotsContainer.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        Không có kỹ thuật viên làm việc trong ngày này
+                    </div>
+                `;
+                return;
+            }
+            
+            timeSlotsContainer.innerHTML = hours.map(hour => {
+                const hourSlots = grouped[hour];
+                const availableCount = hourSlots.filter(s => s.status === 'available').length;
+                const totalCount = hourSlots.length;
+                const isAvailable = availableCount > 0;
+                
+                return `
+                    <div class="time-slot ${!isAvailable ? 'disabled' : ''}" 
+                        data-hour="${hour}"
+                        data-available="${availableCount}">
+                        <div class="slot-time">
+                            <strong>${hour}:00</strong>
+                        </div>
+                        <small class="slot-status mt-1">
+                            ${isAvailable 
+                                ? `<i class="bi bi-check-circle text-success"></i> ${availableCount}/${totalCount} KTV` 
+                                : '<i class="bi bi-x-circle text-danger"></i> Đã đầy'}
+                        </small>
+                    </div>
+                `;
+            }).join('');
+            
+            // Event: Click khung giờ → Hiển thị danh sách KTV
+            timeSlotsContainer.querySelectorAll('.time-slot:not(.disabled)').forEach(slotEl => {
+                slotEl.addEventListener('click', function() {
+                    // Remove previous selection
+                    timeSlotsContainer.querySelectorAll('.time-slot').forEach(s => 
+                        s.classList.remove('selected')
+                    );
+                    
+                    // Mark selected
+                    this.classList.add('selected');
+                    
+                    const hour = this.dataset.hour;
+                    renderMechanicsList(grouped[hour], hour);
+                });
+            });
+        }
+        
+        // ================================================================
+        // FUNCTION: Render danh sách KTV (tầng 2)
+        // ================================================================
+        function renderMechanicsList(hourSlots, hour) {
+            mechanicsListContainer.style.display = 'block';
+            mechanicsListContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            
+            const availableSlots = hourSlots.filter(s => s.status === 'available');
+            
+            if (availableSlots.length === 0) {
+                mechanicsListContainer.innerHTML = `
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        Không có kỹ thuật viên nào rảnh trong khung giờ ${hour}:00
+                    </div>
+                `;
+                return;
+            }
+            
+            mechanicsListContainer.innerHTML = `
+                <h6 class="text-primary mb-3">
+                    <i class="bi bi-person-check"></i> 
+                    Chọn kỹ thuật viên (Khung giờ ${hour}:00)
+                </h6>
+                <div class="mechanics-grid">
+                    ${availableSlots.map(slot => `
+                        <div class="mechanic-card" 
+                            data-mechanic-id="${slot.mechanicId}"
+                            data-time="${slot.time}">
+                            <div class="mechanic-avatar">
+                                <i class="bi bi-person-circle"></i>
+                            </div>
+                            <div class="mechanic-info">
+                                <div class="mechanic-name">${slot.mechanicName}</div>
+                                <div class="mechanic-time">
+                                    <i class="bi bi-clock"></i> 
+                                    Bắt đầu: ${slot.time}
+                                </div>
+                            </div>
+                            <div class="mechanic-badge">
+                                <i class="bi bi-check-circle-fill"></i>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            // Event: Click chọn KTV
+            mechanicsListContainer.querySelectorAll('.mechanic-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    // Remove previous selection
+                    mechanicsListContainer.querySelectorAll('.mechanic-card').forEach(c => 
+                        c.classList.remove('selected')
+                    );
+                    
+                    // Mark selected
+                    this.classList.add('selected');
+                    
+                    selectedMechanic = {
+                        mechanicId: this.dataset.mechanicId,
+                        time: this.dataset.time,
+                        mechanicName: this.querySelector('.mechanic-name').textContent
+                    };
+                    
+                    bookingData.appointment.mechanicId = selectedMechanic.mechanicId;
+                    bookingData.appointment.time = selectedMechanic.time + ':00';
+                    
+                    nextBtn.disabled = false;
+                    
+                    console.log(`✅ Chọn: ${selectedMechanic.mechanicName} - ${selectedMechanic.time}`);
+                });
+            });
+        }
+        
+        // ================================================================
+        // EVENT: Chọn ngày
+        // ================================================================
         dateInput.addEventListener('change', async function() {
             const date = this.value;
             if (!date) return;
             
             bookingData.appointment.date = date;
+            selectedSlot = null;
+            selectedMechanic = null;
+            nextBtn.disabled = true;
+            mechanicsListContainer.style.display = 'none';
             
-            // Load khung giờ trống
+            // Load available slots
             try {
-                timeSlotsContainer.innerHTML = '<div class="spinner-border"></div>';
+                timeSlotsContainer.innerHTML = `
+                    <div class="d-flex justify-content-center align-items-center py-4">
+                        <div class="spinner-border text-primary"></div>
+                        <span class="ms-3">Đang tải khung giờ...</span>
+                    </div>
+                `;
                 
-                const res = await fetch(`${API_BASE}/schedules/available-slots?date=${date}`);
+                const res = await fetch(`${API_BASE}/available-slots?date=${date}`);
+                
+                if (!res.ok) throw new Error('Cannot load slots');
+                
                 const data = await res.json();
-                availableTimeSlots = data.slots || [];
+                allSlots = data.availableSlots || [];
                 
-                renderTimeSlots(availableTimeSlots);
+                console.log(`📋 Có ${allSlots.length} slots`);
+                
+                renderTimeSlots(allSlots);
+                
             } catch (err) {
-                timeSlotsContainer.innerHTML = '<p class="text-danger">Không thể tải khung giờ</p>';
+                console.error('Error loading slots:', err);
+                timeSlotsContainer.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-circle"></i>
+                        Không thể tải khung giờ. Vui lòng thử lại.
+                    </div>
+                `;
             }
         });
         
-        // Render khung giờ
-        function renderTimeSlots(slots) {
-            if (slots.length === 0) {
-                timeSlotsContainer.innerHTML = '<p class="text-muted">Không có khung giờ trống</p>';
+        // ================================================================
+        // EVENT: Next button - Block slot
+        // ================================================================
+        nextBtn.addEventListener('click', async () => {
+            if (!bookingData.appointment.date || !selectedMechanic) {
+                showAlert('Vui lòng chọn ngày và kỹ thuật viên');
                 return;
             }
             
-            timeSlotsContainer.innerHTML = slots.map(slot => `
-                <div class="time-slot" data-time="${slot.time}">
-                    <div>${slot.time}</div>
-                    <small>${slot.available ? 'Còn trống' : 'Đã đầy'}</small>
-                </div>
-            `).join('');
+            bookingData.appointment.notes = notesInput.value.trim();
             
-            // Event: Click chọn giờ
-            timeSlotsContainer.querySelectorAll('.time-slot').forEach(slot => {
-                if (!slot.classList.contains('disabled')) {
-                    slot.addEventListener('click', function() {
-                        timeSlotsContainer.querySelectorAll('.time-slot').forEach(s => 
-                            s.classList.remove('selected')
-                        );
-                        this.classList.add('selected');
-                        selectedSlot = this.dataset.time;
-                        bookingData.appointment.time = selectedSlot;
-                        nextBtn.disabled = false;
-                    });
+            // Block slot
+            try {
+                nextBtn.disabled = true;
+                nextBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang xử lý...';
+                
+                const blockDateTime = `${bookingData.appointment.date} ${bookingData.appointment.time}`;
+                
+                // Tạo BlockedTimeSlots
+                const res = await fetch(`${API_BASE}/blocked-time-slots`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        mechanicId: selectedMechanic.mechanicId,
+                        slotTime: blockDateTime,
+                        duration: estimatedDuration,
+                        isBlocked: 1,
+                        isBreakTime: 1
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    bookingData.appointment.blockedId = data.blockedId;
+                    console.log(`🔒 Blocked slot: ${data.blockedId}`);
+                    
+                    goToStep(4);
+                    handleStep4();
+                } else {
+                    showAlert(data.message || 'Slot đã được đặt. Vui lòng chọn lại.');
+                    nextBtn.disabled = false;
+                    nextBtn.innerHTML = 'Tiếp tục <i class="bi bi-arrow-right"></i>';
+                    
+                    // Reload
+                    dateInput.dispatchEvent(new Event('change'));
                 }
-            });
-        }
-        
-        // Next
-        nextBtn.addEventListener('click', () => {
-            if (!bookingData.appointment.date || !bookingData.appointment.time) {
-                showAlert('Vui lòng chọn ngày và giờ');
-                return;
+            } catch (err) {
+                console.error('Error blocking slot:', err);
+                showAlert('Có lỗi xảy ra. Vui lòng thử lại.');
+                nextBtn.disabled = false;
+                nextBtn.innerHTML = 'Tiếp tục <i class="bi bi-arrow-right"></i>';
             }
-            goToStep(4);
-            handleStep4();
         });
         
-        // Back
-        backBtn.addEventListener('click', () => goToStep(2));
+        // ================================================================
+        // EVENT: Back button
+        // ================================================================
+        backBtn.addEventListener('click', async () => {
+            if (bookingData.appointment.blockedId) {
+                try {
+                    await fetch(`${API_BASE}/blocked-time-slots/${bookingData.appointment.blockedId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${getToken()}`
+                        }
+                    });
+                } catch (err) {
+                    console.error('Error releasing block:', err);
+                }
+            }
+            
+            goToStep(2);
+        });
     }
     
     // ========================================================================
