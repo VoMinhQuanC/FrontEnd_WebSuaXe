@@ -15,17 +15,17 @@ function updateHeaderUserInfo(user) {
     }
     
     if (userNameSmall) {
-        userNameSmall.textContent = user.fullName || user.email || 'Người dùng';
+        userNameSmall.textContent = user.fullName || user.FullName || user.email || 'Người dùng';
     }
     
     if (userAvatarSmall) {
         // Xóa nội dung cũ
         userAvatarSmall.innerHTML = '';
         
-        if (user.avatarUrl) {
+        if (user.avatarUrl || user.AvatarUrl) {
             // Có avatar - Tạo thẻ img
             const imgElement = document.createElement('img');
-            imgElement.src = user.avatarUrl; // Dùng URL trực tiếp
+            imgElement.src = user.avatarUrl || user.AvatarUrl; // Dùng URL trực tiếp
             imgElement.alt = 'Avatar';
             imgElement.className = 'rounded-circle';
             imgElement.style.width = '40px';
@@ -37,13 +37,13 @@ function updateHeaderUserInfo(user) {
             imgElement.onerror = function() {
                 console.error('Failed to load avatar:', user.avatarUrl);
                 // Fallback: Hiển thị chữ cái đầu
-                showAvatarPlaceholder(userAvatarSmall, user.fullName);
+                showAvatarPlaceholder(userAvatarSmall, user.fullName || user.FullName);
             };
             
             userAvatarSmall.appendChild(imgElement);
         } else {
             // Không có avatar - Hiển thị chữ cái đầu
-            showAvatarPlaceholder(userAvatarSmall, user.fullName);
+            showAvatarPlaceholder(userAvatarSmall, user.fullName || user.FullName);
         }
     }
 }
@@ -85,9 +85,15 @@ function initHeaderAuth() {
     const userInfoHeader = document.getElementById('userInfoHeader');
     const userDropdown = document.querySelector('.user-info-header');
     
+    console.log('🔍 Checking auth status:', { 
+        hasToken: !!token, 
+        hasUser: !!userStr 
+    });
+    
     if (token && userStr) {
         try {
             const user = JSON.parse(userStr);
+            console.log('✅ User logged in:', user.fullName || user.FullName);
             
             // Ẩn NÚT ĐĂNG NHẬP (tất cả các cách có thể)
             if (authButtons) {
@@ -109,7 +115,7 @@ function initHeaderAuth() {
             updateHeaderUserInfo(user);
             
         } catch (error) {
-            console.error('Error parsing user data:', error);
+            console.error('❌ Error parsing user data:', error);
             // Hiện nút đăng nhập nếu lỗi
             if (authButtons) authButtons.style.cssText = 'display: flex !important';
             if (loginBtn) loginBtn.style.cssText = 'display: block !important';
@@ -118,6 +124,7 @@ function initHeaderAuth() {
         }
     } else {
         // Chưa đăng nhập
+        console.log('⚠️ User not logged in');
         if (authButtons) authButtons.style.cssText = 'display: flex !important';
         if (loginBtn) loginBtn.style.cssText = 'display: block !important';
         if (userInfoHeader) userInfoHeader.style.cssText = 'display: none !important';
@@ -125,16 +132,55 @@ function initHeaderAuth() {
     }
 }
 
-// Auto-run khi DOM loaded
+/**
+ * Xử lý đăng xuất
+ */
+function handleLogout() {
+    // Xóa tất cả thông tin đăng nhập
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('authToken');
+    
+    console.log('🚪 User logged out');
+    
+    // Hiển thị thông báo
+    alert('Đã đăng xuất thành công!');
+    
+    // Chuyển về trang chủ
+    window.location.href = 'index.html';
+}
+
+/**
+ * Toggle search form
+ */
+function toggleSearch() {
+    const searchForm = document.getElementById('searchForm');
+    if (searchForm) {
+        searchForm.classList.toggle('d-none');
+    }
+}
+
+// ===== AUTO-RUN KHI TRANG LOAD =====
+
+// Chạy khi DOM loaded
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('📄 DOM Content Loaded - Initializing header auth');
     initHeaderAuth();
+    
+    // Xử lý logout button
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            handleLogout();
+        });
+    }
+});
 
-
-// THÊM: Force run lại sau khi page load xong (tránh race condition)
+// Force chạy lại sau khi page load xong (tránh race condition)
 window.addEventListener('load', function() {
+    console.log('🔄 Window Loaded - Re-checking header auth');
     setTimeout(function() {
         initHeaderAuth();
     }, 100);
-});
-
 });
