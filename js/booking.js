@@ -83,43 +83,43 @@ document.addEventListener('DOMContentLoaded', function() {
     /**
      * Kiểm tra trạng thái đăng nhập
      */
-    function checkLoginStatus() {
-        const token = localStorage.getItem('token');
-        const userInfo = localStorage.getItem('user');
+    // function checkLoginStatus() {
+    //     const token = localStorage.getItem('token');
+    //     const userInfo = localStorage.getItem('user');
         
-        if (token && userInfo) {
-            try {
-                // Đã đăng nhập
-                if (loginRequiredAlert) loginRequiredAlert.style.display = 'none';
-                if (bookingFormContainer) bookingFormContainer.style.display = 'flex';
+    //     if (token && userInfo) {
+    //         try {
+    //             // Đã đăng nhập
+    //             if (loginRequiredAlert) loginRequiredAlert.style.display = 'none';
+    //             if (bookingFormContainer) bookingFormContainer.style.display = 'flex';
                 
-                // Load dữ liệu cần thiết
-                loadServices();
+    //             // Load dữ liệu cần thiết
+    //             loadServices();
 
-                // Đọc serviceId từ URL và tự động chọn dịch vụ
-                const urlParams = new URLSearchParams(window.location.search);
-                const preselectedServiceId = urlParams.get('serviceId');
+    //             // Đọc serviceId từ URL và tự động chọn dịch vụ
+    //             const urlParams = new URLSearchParams(window.location.search);
+    //             const preselectedServiceId = urlParams.get('serviceId');
 
-                if (preselectedServiceId) {
-                    console.log('ServiceId từ URL:', preselectedServiceId);
-                    // Đợi services load xong rồi mới tự động chọn
-                    setTimeout(() => {
-                        autoSelectService(preselectedServiceId);
-                    }, 500);
-                }
+    //             if (preselectedServiceId) {
+    //                 console.log('ServiceId từ URL:', preselectedServiceId);
+    //                 // Đợi services load xong rồi mới tự động chọn
+    //                 setTimeout(() => {
+    //                     autoSelectService(preselectedServiceId);
+    //                 }, 500);
+    //             }
 
-                loadUserVehicles();
-                populateYearDropdown();
+    //             loadUserVehicles();
+    //             populateYearDropdown();
                 
-            } catch (error) {
-                console.error('Lỗi xử lý thông tin người dùng:', error);
-                showLoginRequired();
-            }
-        } else {
-            // Chưa đăng nhập
-            showLoginRequired();
-        }
-    }
+    //         } catch (error) {
+    //             console.error('Lỗi xử lý thông tin người dùng:', error);
+    //             showLoginRequired();
+    //         }
+    //     } else {
+    //         // Chưa đăng nhập
+    //         showLoginRequired();
+    //     }
+    // }
     
     /**
      * Hiển thị thông báo yêu cầu đăng nhập

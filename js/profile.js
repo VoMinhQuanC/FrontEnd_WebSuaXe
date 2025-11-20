@@ -230,12 +230,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (userAvatarSmall) {
             if (user.avatarUrl) {
-                // Đảm bảo URL chính xác
+                // Dùng URL trực tiếp từ Cloudinary
                 let avatarUrl = user.avatarUrl;
-                if (!avatarUrl.startsWith('http') && !avatarUrl.startsWith('/')) {
-                    avatarUrl = '/' + avatarUrl;
-                }
-                
                 // Tạo thẻ img cho avatar với xử lý khi lỗi
                 const imgElement = document.createElement('img');
                 imgElement.src = avatarUrl;

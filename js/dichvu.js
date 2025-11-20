@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadServices();
     
     // Kiểm tra trạng thái đăng nhập
-    checkLoginStatus();
+    // checkLoginStatus();
     
     // Thêm sự kiện tìm kiếm dịch vụ
     const searchInput = document.getElementById('searchService');
@@ -192,60 +192,60 @@ document.addEventListener('DOMContentLoaded', function() {
     /**
      * Kiểm tra trạng thái đăng nhập
      */
-    function checkLoginStatus() {
-        const token = localStorage.getItem('token');
-        const userStr = localStorage.getItem('user');
+    // function checkLoginStatus() {
+    //     const token = localStorage.getItem('token');
+    //     const userStr = localStorage.getItem('user');
         
-        console.log('Token:', token ? 'Có' : 'Không');
-        console.log('User data:', userStr);
+    //     console.log('Token:', token ? 'Có' : 'Không');
+    //     console.log('User data:', userStr);
         
-        if (token && userStr) {
-            try {
-                const user = JSON.parse(userStr);
-                console.log('Người dùng đã đăng nhập:', user.fullName);
+    //     if (token && userStr) {
+    //         try {
+    //             const user = JSON.parse(userStr);
+    //             console.log('Người dùng đã đăng nhập:', user.fullName);
                 
-                // Cập nhật UI trực tiếp
-                if (authButtons) {
-                    authButtons.style.cssText = 'display: none !important';
-                    console.log('Đã ẩn nút đăng nhập');
-                }
+    //             // Cập nhật UI trực tiếp
+    //             if (authButtons) {
+    //                 authButtons.style.cssText = 'display: none !important';
+    //                 console.log('Đã ẩn nút đăng nhập');
+    //             }
                 
-                if (userInfoHeader) {
-                    userInfoHeader.style.cssText = 'display: block !important';
-                    console.log('Đã hiện dropdown người dùng');
-                }
+    //             if (userInfoHeader) {
+    //                 userInfoHeader.style.cssText = 'display: block !important';
+    //                 console.log('Đã hiện dropdown người dùng');
+    //             }
                 
-                // Cập nhật thông tin người dùng
-                if (userAvatarSmall) {
-                    userAvatarSmall.textContent = getFirstLetter(user.fullName);
-                }
-                if (userNameSmall) {
-                    userNameSmall.textContent = user.fullName || 'Người dùng';
-                }
+    //             // Cập nhật thông tin người dùng
+    //             if (userAvatarSmall) {
+    //                 userAvatarSmall.textContent = getFirstLetter(user.fullName);
+    //             }
+    //             if (userNameSmall) {
+    //                 userNameSmall.textContent = user.fullName || 'Người dùng';
+    //             }
                 
-                // Gọi hàm cập nhật UI đầy đủ
-                updateUIForLoggedInUser(user);
-            } catch (error) {
-                console.error('Lỗi phân tích cú pháp dữ liệu người dùng:', error);
-                updateUIForLoggedOutUser();
-            }
-        } else {
-            console.log('Người dùng chưa đăng nhập');
+    //             // Gọi hàm cập nhật UI đầy đủ
+    //             updateUIForLoggedInUser(user);
+    //         } catch (error) {
+    //             console.error('Lỗi phân tích cú pháp dữ liệu người dùng:', error);
+    //             updateUIForLoggedOutUser();
+    //         }
+    //     } else {
+    //         console.log('Người dùng chưa đăng nhập');
             
-            // Cập nhật UI trực tiếp
-            if (authButtons) {
-                authButtons.style.cssText = 'display: flex !important';
-                console.log('Đã hiện nút đăng nhập');
-            }
+    //         // Cập nhật UI trực tiếp
+    //         if (authButtons) {
+    //             authButtons.style.cssText = 'display: flex !important';
+    //             console.log('Đã hiện nút đăng nhập');
+    //         }
             
-            if (userInfoHeader) {
-                userInfoHeader.style.cssText = 'display: none !important';
-                console.log('Đã ẩn dropdown người dùng');
-            }
+    //         if (userInfoHeader) {
+    //             userInfoHeader.style.cssText = 'display: none !important';
+    //             console.log('Đã ẩn dropdown người dùng');
+    //         }
             
-            updateUIForLoggedOutUser();
-        }
-    }
+    //         updateUIForLoggedOutUser();
+    //     }
+    // }
     
     /**
      * Reset trạng thái đăng nhập
