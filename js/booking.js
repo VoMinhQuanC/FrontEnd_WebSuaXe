@@ -156,8 +156,8 @@
                 return {
                     id: service.ServiceID,
                     name: service.ServiceName,
-                    price: service.Price,
-                    time: service.EstimatedTime
+                    price: Number(service.Price) || 0,          // ✅ Convert to Number
+                    time: Number(service.EstimatedTime) || 0    // ✅ Convert to Number
                 };
             });
             
