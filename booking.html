@@ -280,11 +280,28 @@
                         </div>
                         
                         <div class="mb-3">
-                            <label for="vehicleYear" class="form-label">Năm sản xuất</label>
-                            <select class="form-select" id="vehicleYear">
-                                <option value="">-- Chọn năm --</option>
-                                <!-- Các năm sẽ được tạo bằng JS -->
-                            </select>
+                            <label for="vehicleYear" class="form-label">
+                                Năm sản xuất 
+                                <span class="badge bg-secondary">Không bắt buộc</span>
+                            </label>
+                            <input 
+                                type="number" 
+                                class="form-control" 
+                                id="vehicleYear" 
+                                list="yearList"
+                                placeholder="Gõ hoặc chọn năm (vd: 2020)" 
+                                min="1974"
+                            >
+                            <!-- ✅ KHÔNG CÓ max="2025" nữa - sẽ set bằng JS -->
+                            
+                            <datalist id="yearList">
+                                <!-- ✅ Sẽ được tạo bằng JS tự động -->
+                            </datalist>
+                            
+                            <div class="form-text text-muted">
+                                <i class="bi bi-info-circle text-primary"></i> 
+                                <strong>3 cách nhập:</strong> (1) Gõ năm, (2) Chọn từ danh sách, hoặc (3) Bỏ trống
+                            </div>
                         </div>
                         
                         <div class="text-end mt-4">
