@@ -721,7 +721,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (saveSpinner) saveSpinner.classList.remove('d-none');
             
             try {
-                const response = await fetch(API_CONFIG.IMAGES.UPLOAD_AVATAR, {
+                const response = await fetch(`${API_BASE_URL}/upload/avatar`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`

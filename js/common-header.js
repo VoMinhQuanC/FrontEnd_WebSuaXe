@@ -128,4 +128,13 @@ function initHeaderAuth() {
 // Auto-run khi DOM loaded
 document.addEventListener('DOMContentLoaded', function() {
     initHeaderAuth();
+
+
+// THÊM: Force run lại sau khi page load xong (tránh race condition)
+window.addEventListener('load', function() {
+    setTimeout(function() {
+        initHeaderAuth();
+    }, 100);
+});
+
 });
