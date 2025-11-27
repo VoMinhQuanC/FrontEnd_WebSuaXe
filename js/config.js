@@ -19,6 +19,7 @@ const API_BASE_URL = (() => {
     
     // Fallback cho các trường hợp khác
     return 'https://suaxeweb-production.up.railway.app/api';
+    
 })();
 
 // Cấu hình API endpoints
@@ -153,13 +154,6 @@ console.log('API Configuration loaded:', {
 // Export cho sử dụng global
 window.API_CONFIG = API_CONFIG;
 window.API_UTILS = API_UTILS;
-
-
-
-
-
-
-
 
 
 /* 
