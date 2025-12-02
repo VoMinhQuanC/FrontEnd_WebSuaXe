@@ -15,7 +15,6 @@
     <link rel="stylesheet" href="css/mechanic-schedule.css">
     
     <script src="js/common-header.js"></script>
-    <script src="js/config.js"></script>
 </head>
 <body>
     <div class="container-fluid">
@@ -94,43 +93,371 @@
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
 
-                <!-- Nút thêm lịch -->
-                <div class="mb-3">
-                    <button class="btn btn-primary" id="addScheduleBtn">
+<!-- THAY THẾ TỪ DÒNG 96 ĐẾN HẾT 2 BẢNG -->
+
+<!-- TABS NAVIGATION -->
+<div class="mb-4">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <!-- Tab Buttons -->
+        <div class="btn-group" role="group" aria-label="View toggle">
+            <button type="button" class="btn btn-outline-primary active" id="tabMySchedule">
+                <i class="bi bi-calendar-check me-2"></i>Lịch của tôi
+            </button>
+            <button type="button" class="btn btn-outline-primary" id="tabTeamSchedule">
+                <i class="bi bi-people me-2"></i>Lịch team
+            </button>
+        </div>
+        
+        <!-- Action Buttons (hiển thị tùy theo tab) -->
+        <div id="myScheduleActions">
+            <button class="btn btn-primary" id="addScheduleBtn">
+                <i class="bi bi-plus-circle me-1"></i> Đăng ký lịch mới
+            </button>
+            <button class="btn btn-outline-secondary ms-2" id="refreshScheduleBtn">
+                <i class="bi bi-arrow-clockwise"></i> Làm mới
+            </button>
+        </div>
+        
+        <div id="teamScheduleActions" style="display: none;">
+            <button class="btn btn-success" id="addScheduleFromWeeklyBtn">
+                <i class="bi bi-plus-circle me-1"></i> Thêm lịch
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- THAY THẾ SECTION "Lịch của tôi" TRONG FILE TABS -->
+
+<!-- SECTION 1: LỊCH CỦA TÔI (List View - CHỈ HIỂN THỊ NGÀY CÓ LỊCH) -->
+<div id="myScheduleSection" class="schedule-section">
+    <!-- Header với navigation -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="m-0 font-weight-bold">
+                    <i class="bi bi-calendar-check me-2"></i>Lịch làm việc của tôi
+                </h5>
+                <div class="d-flex gap-2 align-items-center">
+                    <!-- Month navigation -->
+                    <button class="btn btn-outline-secondary btn-sm" id="prevMonthBtn">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    <span id="currentMonthText" class="fw-bold px-3">Tháng 11/2025</span>
+                    <button class="btn btn-outline-secondary btn-sm" id="nextMonthBtn">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm ms-2" id="todayBtn">
+                        <i class="bi bi-calendar-today me-1"></i>Hôm nay
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card-body">
+            <!-- Legend -->
+            <div class="mb-3 pb-3 border-bottom">
+                <div class="d-flex flex-wrap gap-3">
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-success me-2" style="width: 12px; height: 12px; border-radius: 50%;"></span>
+                        <small class="text-muted">Lịch làm việc</small>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-warning me-2" style="width: 12px; height: 12px; border-radius: 50%;"></span>
+                        <small class="text-muted">Lịch hẹn</small>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-secondary me-2" style="width: 12px; height: 12px; border-radius: 50%;"></span>
+                        <small class="text-muted">Không làm việc</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Schedule List (CHỈ NGÀY CÓ LỊCH) -->
+            <div id="scheduleListContainer">
+                <!-- Loading state -->
+                <div id="scheduleLoading" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Đang tải...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Đang tải lịch làm việc...</p>
+                </div>
+                
+                <!-- Empty state -->
+                <div id="scheduleEmpty" class="text-center py-5" style="display: none;">
+                    <i class="bi bi-calendar-x text-muted" style="font-size: 3rem;"></i>
+                    <p class="mt-3 text-muted">Chưa có lịch làm việc nào trong tháng này</p>
+                    <button class="btn btn-primary mt-2" id="addScheduleFromEmptyBtn">
                         <i class="bi bi-plus-circle me-1"></i> Đăng ký lịch mới
                     </button>
-                    <button class="btn btn-outline-secondary ms-2" id="refreshScheduleBtn">
-                        <i class="bi bi-arrow-clockwise"></i> Làm mới
-                    </button>
                 </div>
+                
+                <!-- Schedule list (render by JS) -->
+                <div id="scheduleList">
+                    <!-- JS sẽ render vào đây -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-                <!-- Lịch làm việc -->
-                <div class="card shadow mb-4">
-                    <div class="card-header py-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="m-0 font-weight-bold">Lịch làm việc</h5>
-                            <div>
-                                <div class="legend d-flex align-items-center">
-                                    <div class="legend-item me-3">
-                                        <span class="legend-color bg-schedule"></span>
-                                        <span class="legend-text">Lịch làm việc</span>
-                                    </div>
-                                    <div class="legend-item me-3">
-                                        <span class="legend-color bg-appointment"></span>
-                                        <span class="legend-text">Lịch hẹn</span>
-                                    </div>
-                                    <div class="legend-item">
-                                        <span class="legend-color bg-unavailable"></span>
-                                        <span class="legend-text">Không làm việc</span>
-                                    </div>
+<!-- CSS cho List View -->
+<style>
+/* Schedule List Styles */
+.schedule-date-group {
+    margin-bottom: 2rem;
+}
+
+.schedule-date-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.schedule-date-header h6 {
+    margin: 0;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.schedule-date-header small {
+    opacity: 0.9;
+}
+
+.schedule-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.schedule-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+    border-color: #667eea;
+}
+
+.schedule-card-time {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.schedule-card-time i {
+    color: #667eea;
+    margin-right: 8px;
+}
+
+.schedule-card-type {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.schedule-card-type.work {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.schedule-card-type.appointment {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.schedule-card-type.unavailable {
+    background-color: #e2e3e5;
+    color: #383d41;
+}
+
+.schedule-card-notes {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #f0f0f0;
+}
+
+.schedule-card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #f0f0f0;
+}
+
+.schedule-card-actions .btn {
+    flex: 1;
+    font-size: 0.875rem;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .schedule-date-header {
+        padding: 10px 16px;
+    }
+    
+    .schedule-card {
+        padding: 12px 16px;
+    }
+    
+    .schedule-card-time {
+        font-size: 1rem;
+    }
+    
+    .schedule-card-actions {
+        flex-direction: column;
+    }
+    
+    .schedule-card-actions .btn {
+        width: 100%;
+    }
+}
+
+/* Animation */
+.schedule-fade-in {
+    animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
+
+
+<!-- SECTION 2: LỊCH TEAM (Table View) -->
+<div id="teamScheduleSection" class="schedule-section" style="display: none;">
+    <!-- Lịch trình tuần - TẤT CẢ KỸ THUẬT VIÊN -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h5 class="m-0 font-weight-bold">
+                <i class="bi bi-people me-2"></i>Lịch trình tuần - Tất cả kỹ thuật viên
+            </h5>
+        </div>
+        <div class="card-body">
+            <!-- Navigation tuần -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <button class="btn btn-outline-primary" id="prevWeekBtn">
+                    <i class="bi bi-chevron-left"></i> Tuần trước
+                </button>
+                <h6 class="mb-0" id="weekRangeText">01-12-2025 - 07-12-2025</h6>
+                <button class="btn btn-outline-primary" id="nextWeekBtn">
+                    Tuần sau <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+
+            <!-- Bảng lịch tuần -->
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="weeklyScheduleTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="min-width: 150px;">Kỹ thuật viên</th>
+                            <th class="text-center">Thứ Hai<br><small id="day1"></small></th>
+                            <th class="text-center">Thứ Ba<br><small id="day2"></small></th>
+                            <th class="text-center">Thứ Tư<br><small id="day3"></small></th>
+                            <th class="text-center">Thứ Năm<br><small id="day4"></small></th>
+                            <th class="text-center">Thứ Sáu<br><small id="day5"></small></th>
+                            <th class="text-center">Thứ Bảy<br><small id="day6"></small></th>
+                            <th class="text-center">Chủ Nhật<br><small id="day7"></small></th>
+                        </tr>
+                    </thead>
+                    <tbody id="weeklyScheduleBody">
+                        <!-- Data sẽ được render bằng JS -->
+                        <tr>
+                            <td colspan="8" class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Đang tải...</span>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div id="calendar"></div>
-                    </div>
-                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Ghi chú -->
+            <div class="mt-3">
+                <small class="text-muted">
+                    <i class="bi bi-info-circle me-1"></i>
+                    + <span id="hiddenMechanicsCount">0</span> kỹ thuật viên khác. 
+                    Sử dụng chức năng "Xem tất cả kỹ thuật viên" để xem đầy đủ.
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CSS cho tabs -->
+<style>
+/* Tab buttons */
+.btn-group .btn {
+    border-radius: 0;
+    padding: 10px 20px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-group .btn:first-child {
+    border-top-left-radius: 0.375rem;
+    border-bottom-left-radius: 0.375rem;
+}
+
+.btn-group .btn:last-child {
+    border-top-right-radius: 0.375rem;
+    border-bottom-right-radius: 0.375rem;
+}
+
+.btn-group .btn.active {
+    background-color: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+}
+
+.btn-group .btn:not(.active):hover {
+    background-color: #e7f1ff;
+}
+
+/* Schedule sections */
+.schedule-section {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Highlight current mechanic row in team schedule */
+.my-schedule-row {
+    background-color: #fff3cd !important;
+    font-weight: 600;
+}
+
+.my-schedule-row td {
+    border-left: 3px solid #ffc107;
+}
+</style>
+
 
                 <!-- Lịch làm việc đã đăng ký -->
                 <div class="card shadow mb-4">
@@ -166,9 +493,9 @@
         </div>
     </div>
 
-    <!-- Modal Đăng ký lịch làm việc -->
+    <!-- Modal Đăng ký lịch làm việc - V2 FIXED -->
     <div class="modal fade" id="scheduleModal" tabindex="-1" aria-labelledby="scheduleModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="scheduleModalLabel">Đăng ký lịch làm việc</h5>
@@ -177,42 +504,113 @@
                 <div class="modal-body">
                     <form id="scheduleForm">
                         <input type="hidden" id="scheduleId">
+                        <input type="hidden" id="isEditMode" value="false">
                         
+                        <!-- Chọn ngày -->
                         <div class="mb-3">
-                            <label for="scheduleDate" class="form-label">Ngày làm việc <span class="text-danger">*</span></label>
+                            <label for="scheduleDate" class="form-label">
+                                Ngày làm việc <span class="text-danger">*</span>
+                            </label>
                             <input type="date" class="form-control" id="scheduleDate" required>
+                            <small class="text-muted">Chỉ có thể đăng ký trước 24 giờ</small>
                         </div>
                         
+                        <!-- Chọn giờ -->
                         <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label for="startTime" class="form-label">Giờ bắt đầu <span class="text-danger">*</span></label>
-                                <input type="time" class="form-control" id="startTime" required>
+                            <div class="col-6">
+                                <label for="startTime" class="form-label">
+                                    Giờ bắt đầu <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="startTime" required>
+                                    <option value="">-- Chọn giờ --</option>
+                                    <option value="07:00">07:00 Sáng</option>
+                                    <option value="08:00">08:00 Sáng</option>
+                                    <option value="09:00">09:00 Sáng</option>
+                                    <option value="10:00">10:00 Sáng</option>
+                                    <option value="11:00">11:00 Sáng</option>
+                                    <option value="12:00">12:00 Trưa</option>
+                                    <option value="13:00">13:00 Chiều</option>
+                                    <option value="14:00">14:00 Chiều</option>
+                                    <option value="15:00">15:00 Chiều</option>
+                                    <option value="16:00">16:00 Chiều</option>
+                                    <option value="17:00">17:00 Chiều</option>
+                                </select>
                             </div>
-                            <div class="col-md-6">
-                                <label for="endTime" class="form-label">Giờ kết thúc <span class="text-danger">*</span></label>
-                                <input type="time" class="form-control" id="endTime" required>
+                            <div class="col-6">
+                                <label for="endTime" class="form-label">
+                                    Giờ kết thúc <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="endTime" required>
+                                    <option value="">-- Chọn giờ --</option>
+                                    <option value="08:00">08:00 Sáng</option>
+                                    <option value="09:00">09:00 Sáng</option>
+                                    <option value="10:00">10:00 Sáng</option>
+                                    <option value="11:00">11:00 Sáng</option>
+                                    <option value="12:00">12:00 Trưa</option>
+                                    <option value="13:00">13:00 Chiều</option>
+                                    <option value="14:00">14:00 Chiều</option>
+                                    <option value="15:00">15:00 Chiều</option>
+                                    <option value="16:00">16:00 Chiều</option>
+                                    <option value="17:00">17:00 Chiều</option>
+                                    <option value="18:00">18:00 Chiều</option>
+                                </select>
                             </div>
                         </div>
                         
-                        <div class="mb-3">
-                            <label for="scheduleType" class="form-label">Loại lịch <span class="text-danger">*</span></label>
-                            <select class="form-select" id="scheduleType" required>
-                                <option value="available">Có thể làm việc</option>
-                                <option value="unavailable">Không thể làm việc</option>
-                            </select>
+                        <!-- CHỈ HIỂN THỊ KHI EDIT - Checkbox đăng ký nghỉ -->
+                        <div class="mb-3" id="leaveRequestSection" style="display: none;">
+                            <div class="alert alert-info mb-2">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>Bạn đã đăng ký lịch này rồi.</strong> Nếu có việc bận đột xuất, tích vào ô bên dưới để đăng ký nghỉ.
+                            </div>
+                            
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="isUnavailable">
+                                <label class="form-check-label" for="isUnavailable">
+                                    <strong>Đăng ký nghỉ (có việc bận, không thể làm việc)</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                Admin sẽ nhận được thông báo về đơn xin nghỉ của bạn
+                            </small>
                         </div>
                         
+                        <!-- Ghi chú/Lý do -->
                         <div class="mb-3">
-                            <label for="scheduleNotes" class="form-label">Ghi chú</label>
-                            <textarea class="form-control" id="scheduleNotes" rows="3"></textarea>
+                            <label for="scheduleNotes" class="form-label">
+                                <span id="notesLabel">Ghi chú</span>
+                                <span class="text-danger" id="reasonRequired" style="display: none;">*</span>
+                            </label>
+                            <textarea 
+                                class="form-control" 
+                                id="scheduleNotes" 
+                                rows="3"
+                                placeholder="VD: Ca sáng, ca chiều..."
+                            ></textarea>
+                            <small class="text-muted" id="notesHint">Thông tin thêm về ca làm việc (không bắt buộc)</small>
+                            <small class="text-danger" id="reasonHint" style="display: none;">
+                                <strong>Vui lòng ghi rõ lý do nghỉ để admin dễ dàng xét duyệt</strong>
+                            </small>
+                        </div>
+                        
+                        <!-- Hiển thị trạng thái (chỉ khi edit) -->
+                        <div class="mb-3" id="statusDisplay" style="display: none;">
+                            <label class="form-label">Trạng thái hiện tại</label>
+                            <div>
+                                <span class="badge" id="statusBadge"></span>
+                            </div>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i> Đóng
+                    </button>
                     <button type="button" class="btn btn-primary" id="saveScheduleBtn">
-                        <span class="spinner-border spinner-border-sm d-none" id="saveScheduleSpinner" role="status" aria-hidden="true"></span>
-                        Lưu lịch
+                        <span class="spinner-border spinner-border-sm d-none" id="saveScheduleSpinner" role="status"></span>
+                        <i class="bi bi-check-circle me-1"></i>
+                        <span id="saveBtnText">Lưu lịch</span>
                     </button>
                 </div>
             </div>
@@ -221,27 +619,109 @@
 
     <!-- Modal Xác nhận xóa lịch -->
     <div class="modal fade" id="deleteScheduleModal" tabindex="-1" aria-labelledby="deleteScheduleModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="deleteScheduleModalLabel">Xác nhận xóa lịch</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="deleteScheduleModalLabel">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Xác nhận xóa lịch
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p>Bạn có chắc chắn muốn xóa lịch làm việc này không?</p>
-                    <p class="text-danger">Lưu ý: Hành động này không thể hoàn tác.</p>
+                    <p class="mb-3">Bạn có chắc chắn muốn xóa lịch làm việc này không?</p>
+                    <div class="alert alert-warning mb-0">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Lưu ý:</strong> Hành động này không thể hoàn tác.
+                    </div>
                     <input type="hidden" id="deleteScheduleId">
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i> Hủy
+                    </button>
                     <button type="button" class="btn btn-danger" id="confirmDeleteScheduleBtn">
-                        <span class="spinner-border spinner-border-sm d-none" id="deleteScheduleSpinner" role="status" aria-hidden="true"></span>
-                        Xác nhận xóa
+                        <span class="spinner-border spinner-border-sm d-none" id="deleteScheduleSpinner" role="status"></span>
+                        <i class="bi bi-trash me-1"></i> Xác nhận xóa
                     </button>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Script xử lý checkbox nghỉ -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const isUnavailableCheckbox = document.getElementById('isUnavailable');
+        if (!isUnavailableCheckbox) return;
+        
+        const startTimeSelect = document.getElementById('startTime');
+        const endTimeSelect = document.getElementById('endTime');
+        const notesTextarea = document.getElementById('scheduleNotes');
+        const notesLabel = document.getElementById('notesLabel');
+        const notesHint = document.getElementById('notesHint');
+        const reasonRequired = document.getElementById('reasonRequired');
+        const reasonHint = document.getElementById('reasonHint');
+        const saveBtnText = document.getElementById('saveBtnText');
+        
+        // Khi tick checkbox
+        isUnavailableCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                // Đăng ký nghỉ
+                startTimeSelect.disabled = true;
+                endTimeSelect.disabled = true;
+                startTimeSelect.removeAttribute('required');
+                endTimeSelect.removeAttribute('required');
+                startTimeSelect.value = '';
+                endTimeSelect.value = '';
+                
+                notesLabel.textContent = 'Lý do nghỉ';
+                notesTextarea.required = true;
+                reasonRequired.style.display = 'inline';
+                notesHint.style.display = 'none';
+                reasonHint.style.display = 'block';
+                notesTextarea.placeholder = 'VD: Có việc gia đình, khám bệnh...';
+                saveBtnText.textContent = 'Gửi đơn xin nghỉ';
+                
+                // Đổi màu warning
+                this.parentElement.style.backgroundColor = '#fee2e2';
+                this.parentElement.style.borderColor = '#ef4444';
+                
+            } else {
+                // Quay lại bình thường
+                startTimeSelect.disabled = false;
+                endTimeSelect.disabled = false;
+                startTimeSelect.setAttribute('required', 'required');
+                endTimeSelect.setAttribute('required', 'required');
+                
+                notesLabel.textContent = 'Ghi chú';
+                notesTextarea.required = false;
+                reasonRequired.style.display = 'none';
+                notesHint.style.display = 'block';
+                reasonHint.style.display = 'none';
+                notesTextarea.placeholder = 'VD: Ca sáng, ca chiều...';
+                
+                const isEdit = document.getElementById('isEditMode').value === 'true';
+                saveBtnText.textContent = isEdit ? 'Cập nhật lịch' : 'Lưu lịch';
+                
+                this.parentElement.style.backgroundColor = '#f0f9ff';
+                this.parentElement.style.borderColor = '#bfdbfe';
+            }
+        });
+        
+        // Giới hạn 24h
+        const scheduleDateInput = document.getElementById('scheduleDate');
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        scheduleDateInput.min = tomorrow.toISOString().split('T')[0];
+        
+        const maxDate = new Date(today);
+        maxDate.setMonth(maxDate.getMonth() + 3);
+        scheduleDateInput.max = maxDate.toISOString().split('T')[0];
+    });
+    </script>
 
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -252,6 +732,6 @@
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales-all.min.js"></script>
     <!-- Custom JS -->
     <script src="js/config.js"></script>
-    <script src="js/mechanic-schedule.js"></script>
+    <script src="js/mechanic-schedule.js?v=perfect"></script>
 </body>
 </html>
