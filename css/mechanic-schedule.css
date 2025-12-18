@@ -1114,4 +1114,93 @@ small.text-danger strong {
     animation: fadeInTooltip 0.2s ease-out;
 }
 
+/* =============== XIN NGHỈ STYLES =============== */
+
+/* Pending Leave Card */
+.schedule-card.pending-leave-card {
+    border-left: 4px solid var(--warning) !important;
+    background-color: rgba(246, 194, 62, 0.05);
+}
+
+/* Schedule Type Badges */
+.schedule-card-type.pending-leave {
+    background-color: rgba(246, 194, 62, 0.2);
+    color: #b45309;
+    border: 1px solid rgba(246, 194, 62, 0.5);
+}
+
+.schedule-card-type.unavailable {
+    background-color: rgba(220, 53, 69, 0.15);
+    color: #dc3545;
+    border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.schedule-card-type.work {
+    background-color: rgba(78, 115, 223, 0.15);
+    color: #4e73df;
+    border: 1px solid rgba(78, 115, 223, 0.3);
+}
+
+.schedule-card-type.appointment {
+    background-color: rgba(54, 185, 204, 0.15);
+    color: #36b9cc;
+    border: 1px solid rgba(54, 185, 204, 0.3);
+}
+
+/* Pending Edit - màu info/cyan */
+.schedule-card-type.pending-edit {
+    background-color: rgba(23, 162, 184, 0.2);
+    color: #117a8b;
+    border: 1px solid rgba(23, 162, 184, 0.5);
+}
+
+.schedule-card.pending-edit-card {
+    border-left: 4px solid #17a2b8 !important;
+    background-color: rgba(23, 162, 184, 0.05);
+}
+
+/* Approved Edit - màu success */
+.schedule-card-type.approved-edit {
+    background-color: rgba(40, 167, 69, 0.15);
+    color: #28a745;
+    border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+/* Rejected Edit - màu danger */
+.schedule-card-type.rejected-edit {
+    background-color: rgba(220, 53, 69, 0.15);
+    color: #dc3545;
+    border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+/* Leave Request Button */
+.btn-outline-warning.leave-request-btn {
+    border-color: #f6c23e;
+    color: #b45309;
+}
+
+.btn-outline-warning.leave-request-btn:hover {
+    background-color: #f6c23e;
+    color: #1a1a1a;
+}
+
+/* Leave Request Modal */
+#leaveRequestModal .modal-header {
+    background-color: #f6c23e;
+}
+
+#leaveRequestModal .modal-header .modal-title {
+    color: #1a1a1a;
+}
+
+/* Leave Schedule Info Box */
+.leave-schedule-info {
+    background: linear-gradient(135deg, #f8f9fc 0%, #eef2f7 100%);
+}
+
+.leave-schedule-info i {
+    width: 24px;
+    text-align: center;
+}
+
 /* =============== KẾT THÚC CSS MỚI =============== */

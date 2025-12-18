@@ -45,12 +45,7 @@
                                 Lịch làm việc
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="mechanic-profile.html" id="profile-link">
-                                <i class="bi bi-person me-2"></i>
-                                Hồ sơ cá nhân
-                            </a>
-                        </li>
+                        
                         <li class="nav-item mt-4">
                             <a class="nav-link text-danger" href="#" id="sidebar-logout">
                                 <i class="bi bi-box-arrow-right me-2"></i>
@@ -72,7 +67,7 @@
                                 <div class="avatar-placeholder" id="avatarPlaceholder">K</div>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end text-small" aria-labelledby="dropdownUser">
-                                <li><a class="dropdown-item" href="mechanic-profile.html"><i class="bi bi-person me-2"></i>Hồ sơ</a></li>
+                                <li><a class="dropdown-item" href="profile.html"><i class="bi bi-person me-2"></i>Hồ sơ</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="#" id="logout-link"><i class="bi bi-box-arrow-right me-2"></i>Đăng xuất</a></li>
                             </ul>
@@ -473,8 +468,8 @@
                                 <thead>
                                     <tr>
                                         <th>Mã lịch</th>
-                                        <th>Ngày bắt đầu</th>
-                                        <th>Ngày kết thúc</th>
+                                        <th>Ngày làm</th>
+                                        <th>Ca làm</th>
                                         <th>Trạng thái</th>
                                         <th>Ghi chú</th>
                                         <th>Thao tác</th>
@@ -557,30 +552,10 @@
                             </div>
                         </div>
                         
-                        <!-- CHỈ HIỂN THỊ KHI EDIT - Checkbox đăng ký nghỉ -->
-                        <div class="mb-3" id="leaveRequestSection" style="display: none;">
-                            <div class="alert alert-info mb-2">
-                                <i class="bi bi-info-circle me-2"></i>
-                                <strong>Bạn đã đăng ký lịch này rồi.</strong> Nếu có việc bận đột xuất, tích vào ô bên dưới để đăng ký nghỉ.
-                            </div>
-                            
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="isUnavailable">
-                                <label class="form-check-label" for="isUnavailable">
-                                    <strong>Đăng ký nghỉ (có việc bận, không thể làm việc)</strong>
-                                </label>
-                            </div>
-                            <small class="text-muted">
-                                <i class="bi bi-exclamation-triangle me-1"></i>
-                                Admin sẽ nhận được thông báo về đơn xin nghỉ của bạn
-                            </small>
-                        </div>
-                        
                         <!-- Ghi chú/Lý do -->
                         <div class="mb-3">
                             <label for="scheduleNotes" class="form-label">
                                 <span id="notesLabel">Ghi chú</span>
-                                <span class="text-danger" id="reasonRequired" style="display: none;">*</span>
                             </label>
                             <textarea 
                                 class="form-control" 
@@ -589,9 +564,6 @@
                                 placeholder="VD: Ca sáng, ca chiều..."
                             ></textarea>
                             <small class="text-muted" id="notesHint">Thông tin thêm về ca làm việc (không bắt buộc)</small>
-                            <small class="text-danger" id="reasonHint" style="display: none;">
-                                <strong>Vui lòng ghi rõ lý do nghỉ để admin dễ dàng xét duyệt</strong>
-                            </small>
                         </div>
                         
                         <!-- Hiển thị trạng thái (chỉ khi edit) -->
@@ -618,97 +590,105 @@
     </div>
 
     <!-- Modal Xác nhận xóa lịch -->
-    <div class="modal fade" id="deleteScheduleModal" tabindex="-1" aria-labelledby="deleteScheduleModalLabel" aria-hidden="true">
+    <!-- Modal Xin nghỉ -->
+    <div class="modal fade" id="leaveRequestModal" tabindex="-1" aria-labelledby="leaveRequestModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title" id="deleteScheduleModalLabel">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        Xác nhận xóa lịch
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title" id="leaveRequestModalLabel">
+                        <i class="bi bi-calendar-x me-2"></i>
+                        Đăng ký xin nghỉ
                     </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="mb-3">Bạn có chắc chắn muốn xóa lịch làm việc này không?</p>
-                    <div class="alert alert-warning mb-0">
-                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                        <strong>Lưu ý:</strong> Hành động này không thể hoàn tác.
+                    <!-- Thông tin lịch đang xin nghỉ -->
+                    <div class="leave-schedule-info mb-3 p-3 bg-light rounded border">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-calendar-event text-primary me-2 fs-5"></i>
+                            <div>
+                                <small class="text-muted d-block">Ngày làm việc</small>
+                                <strong id="leaveScheduleDate">--/--/----</strong>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-clock text-primary me-2 fs-5"></i>
+                            <div>
+                                <small class="text-muted d-block">Ca làm việc</small>
+                                <strong id="leaveScheduleTime">--:-- - --:--</strong>
+                            </div>
+                        </div>
                     </div>
-                    <input type="hidden" id="deleteScheduleId">
+                    
+                    <!-- Alert thông báo -->
+                    <div class="alert alert-info mb-3" style="background-color: #e8f4fd; border-color: #b6d4fe;">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Bạn đã đăng ký lịch này rồi.</strong> Nếu có việc bận đột xuất, vui lòng điền lý do bên dưới để xin nghỉ.
+                    </div>
+                    
+                    <!-- Checkbox xác nhận (visual only) -->
+                    <div class="form-check mb-3 p-3 rounded" style="background-color: #fef3c7; border: 1px solid #fcd34d;">
+                        <input class="form-check-input" type="checkbox" id="confirmLeaveCheckbox" checked disabled>
+                        <label class="form-check-label" for="confirmLeaveCheckbox">
+                            <strong style="color: #92400e;">
+                                <i class="bi bi-calendar-x me-1"></i>
+                                Đăng ký nghỉ (có việc bận, không thể làm việc)
+                            </strong>
+                        </label>
+                    </div>
+                    
+                    <small class="text-muted d-block mb-3">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        Admin sẽ nhận được thông báo về đơn xin nghỉ của bạn
+                    </small>
+                    
+                    <!-- Lý do xin nghỉ -->
+                    <div class="mb-3">
+                        <label for="leaveReason" class="form-label">
+                            <strong>Lý do xin nghỉ</strong> <span class="text-danger">*</span>
+                        </label>
+                        <textarea 
+                            class="form-control" 
+                            id="leaveReason" 
+                            rows="3"
+                            placeholder="VD: Có việc gia đình, khám bệnh, bận đột xuất..."
+                            required
+                            style="border-color: #fcd34d;"
+                        ></textarea>
+                        <small class="text-danger">
+                            <strong><i class="bi bi-exclamation-circle me-1"></i>Vui lòng ghi rõ lý do để Admin dễ dàng xét duyệt</strong>
+                        </small>
+                    </div>
+                    
+                    <!-- Trạng thái sau khi gửi -->
+                    <div class="mb-0">
+                        <label class="form-label text-muted">Trạng thái sau khi gửi</label>
+                        <div>
+                            <span class="badge rounded-pill" style="background-color: #f59e0b; color: #1a1a1a; padding: 8px 16px; font-size: 0.85rem;">
+                                <i class="bi bi-hourglass-split me-1"></i>
+                                CHỜ DUYỆT
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <input type="hidden" id="leaveScheduleId">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="bi bi-x-circle me-1"></i> Hủy
+                        <i class="bi bi-x-circle me-1"></i> Đóng
                     </button>
-                    <button type="button" class="btn btn-danger" id="confirmDeleteScheduleBtn">
-                        <span class="spinner-border spinner-border-sm d-none" id="deleteScheduleSpinner" role="status"></span>
-                        <i class="bi bi-trash me-1"></i> Xác nhận xóa
+                    <button type="button" class="btn btn-warning" id="confirmLeaveRequestBtn" style="background-color: #f59e0b; border-color: #f59e0b; color: #1a1a1a;">
+                        <span class="spinner-border spinner-border-sm d-none" id="leaveRequestSpinner" role="status"></span>
+                        <i class="bi bi-send me-1"></i> Gửi đơn xin nghỉ
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Script xử lý checkbox nghỉ -->
+    <!-- Script giới hạn ngày đăng ký -->
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const isUnavailableCheckbox = document.getElementById('isUnavailable');
-        if (!isUnavailableCheckbox) return;
-        
-        const startTimeSelect = document.getElementById('startTime');
-        const endTimeSelect = document.getElementById('endTime');
-        const notesTextarea = document.getElementById('scheduleNotes');
-        const notesLabel = document.getElementById('notesLabel');
-        const notesHint = document.getElementById('notesHint');
-        const reasonRequired = document.getElementById('reasonRequired');
-        const reasonHint = document.getElementById('reasonHint');
-        const saveBtnText = document.getElementById('saveBtnText');
-        
-        // Khi tick checkbox
-        isUnavailableCheckbox.addEventListener('change', function() {
-            if (this.checked) {
-                // Đăng ký nghỉ
-                startTimeSelect.disabled = true;
-                endTimeSelect.disabled = true;
-                startTimeSelect.removeAttribute('required');
-                endTimeSelect.removeAttribute('required');
-                startTimeSelect.value = '';
-                endTimeSelect.value = '';
-                
-                notesLabel.textContent = 'Lý do nghỉ';
-                notesTextarea.required = true;
-                reasonRequired.style.display = 'inline';
-                notesHint.style.display = 'none';
-                reasonHint.style.display = 'block';
-                notesTextarea.placeholder = 'VD: Có việc gia đình, khám bệnh...';
-                saveBtnText.textContent = 'Gửi đơn xin nghỉ';
-                
-                // Đổi màu warning
-                this.parentElement.style.backgroundColor = '#fee2e2';
-                this.parentElement.style.borderColor = '#ef4444';
-                
-            } else {
-                // Quay lại bình thường
-                startTimeSelect.disabled = false;
-                endTimeSelect.disabled = false;
-                startTimeSelect.setAttribute('required', 'required');
-                endTimeSelect.setAttribute('required', 'required');
-                
-                notesLabel.textContent = 'Ghi chú';
-                notesTextarea.required = false;
-                reasonRequired.style.display = 'none';
-                notesHint.style.display = 'block';
-                reasonHint.style.display = 'none';
-                notesTextarea.placeholder = 'VD: Ca sáng, ca chiều...';
-                
-                const isEdit = document.getElementById('isEditMode').value === 'true';
-                saveBtnText.textContent = isEdit ? 'Cập nhật lịch' : 'Lưu lịch';
-                
-                this.parentElement.style.backgroundColor = '#f0f9ff';
-                this.parentElement.style.borderColor = '#bfdbfe';
-            }
-        });
-        
         // Giới hạn 24h
         const scheduleDateInput = document.getElementById('scheduleDate');
         const today = new Date();
@@ -722,6 +702,150 @@
         scheduleDateInput.max = maxDate.toISOString().split('T')[0];
     });
     </script>
+
+    <!-- Modal Xin sửa lịch -->
+    <div class="modal fade" id="editRequestModal" tabindex="-1" aria-labelledby="editRequestModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="editRequestModalLabel">
+                        <i class="bi bi-pencil-square me-2"></i>
+                        Xin sửa lịch làm việc
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Thông tin lịch hiện tại -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="edit-schedule-info p-3 bg-light rounded border">
+                                <h6 class="text-muted mb-2"><i class="bi bi-calendar-event me-1"></i> Lịch hiện tại</h6>
+                                <div class="d-flex align-items-center mb-2">
+                                    <div>
+                                        <small class="text-muted d-block">Ngày làm việc</small>
+                                        <strong id="editCurrentDate">--/--/----</strong>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    <div>
+                                        <small class="text-muted d-block">Ca làm việc</small>
+                                        <strong id="editCurrentTime">--:-- - --:--</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="edit-schedule-info p-3 rounded border" style="background-color: #e0f2fe; border-color: #0ea5e9 !important;">
+                                <h6 class="text-info mb-2"><i class="bi bi-arrow-right-circle me-1"></i> Lịch muốn đổi sang</h6>
+                                <div class="mb-2">
+                                    <label for="editNewDate" class="form-label small">Ngày mới <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control form-control-sm" id="editNewDate" required>
+                                </div>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <label for="editNewStartTime" class="form-label small">Từ <span class="text-danger">*</span></label>
+                                        <input type="time" class="form-control form-control-sm" id="editNewStartTime" value="08:00" required>
+                                    </div>
+                                    <div class="col-6">
+                                        <label for="editNewEndTime" class="form-label small">Đến <span class="text-danger">*</span></label>
+                                        <input type="time" class="form-control form-control-sm" id="editNewEndTime" value="17:00" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Alert thông báo -->
+                    <div class="alert alert-info mb-3" style="background-color: #e0f2fe; border-color: #0ea5e9;">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Bạn muốn thay đổi lịch làm việc?</strong> Vui lòng điền thông tin mới và lý do để Admin xét duyệt.
+                    </div>
+                    
+                    <!-- Lưu ý quan trọng -->
+                    <div class="alert alert-warning mb-3" style="background-color: #fef3c7; border-color: #fcd34d;">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Lưu ý:</strong>
+                        <ul class="mb-0 mt-1 small">
+                            <li>Chỉ có thể xin sửa lịch <strong>trước 2 ngày</strong> kể từ ngày làm việc</li>
+                            <li>Lịch đã có khách đặt <strong>không thể sửa</strong>, chỉ có thể xin nghỉ</li>
+                            <li>Đơn xin sửa cần được <strong>Admin duyệt</strong> mới có hiệu lực</li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Lý do xin sửa -->
+                    <div class="mb-3">
+                        <label for="editReason" class="form-label">
+                            <strong>Lý do xin sửa lịch</strong> <span class="text-danger">*</span>
+                        </label>
+                        <textarea 
+                            class="form-control" 
+                            id="editReason" 
+                            rows="3"
+                            placeholder="VD: Đổi ca để đi học, có việc gia đình vào ngày cũ..."
+                            required
+                            style="border-color: #0ea5e9;"
+                        ></textarea>
+                        <small class="text-info">
+                            <strong><i class="bi bi-info-circle me-1"></i>Ghi rõ lý do để Admin dễ dàng xét duyệt</strong>
+                        </small>
+                    </div>
+                    
+                    <!-- Trạng thái sau khi gửi -->
+                    <div class="mb-0">
+                        <label class="form-label text-muted">Trạng thái sau khi gửi</label>
+                        <div>
+                            <span class="badge rounded-pill bg-info" style="padding: 8px 16px; font-size: 0.85rem;">
+                                <i class="bi bi-hourglass-split me-1"></i>
+                                CHỜ DUYỆT
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <input type="hidden" id="editScheduleId">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i> Đóng
+                    </button>
+                    <button type="button" class="btn btn-info text-white" id="confirmEditRequestBtn">
+                        <span class="spinner-border spinner-border-sm d-none" id="editRequestSpinner" role="status"></span>
+                        <i class="bi bi-send me-1"></i> Gửi đơn xin sửa
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Thông báo khóa lịch -->
+    <div class="modal fade" id="lockInfoModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-lock-fill me-2"></i>
+                        Lịch bị khóa
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <i class="bi bi-shield-lock text-danger" style="font-size: 4rem;"></i>
+                    </div>
+                    <div class="alert alert-danger mb-3" id="lockReasonAlert">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <span id="lockReasonText">Lịch này đã bị khóa.</span>
+                    </div>
+                    <p class="text-muted mb-0" id="lockActionHint"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="button" class="btn btn-warning" id="lockLeaveRequestBtn" style="display: none;">
+                        <i class="bi bi-calendar-x me-1"></i> Xin nghỉ thay thế
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>

@@ -216,10 +216,37 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // === LỌC CHỈ KTV CÓ LỊCH TRONG TUẦN ===
+        const mechanicIdsWithSchedule = new Set();
+        currentWeekDays.forEach(day => {
+            const dateStr = formatDateForAPI(day);
+            const daySchedules = schedulesByDay[dateStr] || [];
+            daySchedules.forEach(schedule => {
+                mechanicIdsWithSchedule.add(parseInt(schedule.MechanicID));
+            });
+        });
+        
+        const mechanicsWithSchedule = mechanics.filter(
+            m => mechanicIdsWithSchedule.has(parseInt(m.UserID))
+        );
+        
+        if (mechanicsWithSchedule.length === 0) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        <i class="bi bi-calendar-x fs-1 d-block mb-2"></i>
+                        Không có kỹ thuật viên nào đăng ký làm việc trong tuần này.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        // === END LỌC ===
+        
         let html = '';
         
-        // Hiển thị lịch trình cho tất cả kỹ thuật viên
-        mechanics.forEach(mechanic => {
+        // Hiển thị lịch trình cho các kỹ thuật viên CÓ LỊCH
+        mechanicsWithSchedule.forEach(mechanic => {
             html += `<tr><td>${mechanic.FullName}</td>`;
             
             currentWeekDays.forEach(day => {
@@ -865,10 +892,37 @@ function editScheduleFromModal(id) {
             return;
         }
         
+        // === LỌC CHỈ KTV CÓ LỊCH TRONG TUẦN ===
+        const mechanicIdsWithSchedule = new Set();
+        currentWeekDays.forEach(day => {
+            const dateStr = formatDateForAPI(day);
+            const daySchedules = schedulesByDay[dateStr] || [];
+            daySchedules.forEach(schedule => {
+                mechanicIdsWithSchedule.add(parseInt(schedule.MechanicID));
+            });
+        });
+        
+        const mechanicsWithSchedule = mechanics.filter(
+            m => mechanicIdsWithSchedule.has(parseInt(m.UserID))
+        );
+        
+        if (mechanicsWithSchedule.length === 0) {
+            document.getElementById('weeklyScheduleBody').innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        <i class="bi bi-calendar-x fs-1 d-block mb-2"></i>
+                        Không có kỹ thuật viên nào đăng ký làm việc trong tuần này.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        // === END LỌC ===
+        
         let html = '';
         
-        // Chỉ hiển thị tối đa 5 kỹ thuật viên để giữ bảng gọn gàng
-        const displayMechanics = mechanics.slice(0, 5);
+        // Chỉ hiển thị tối đa 5 kỹ thuật viên CÓ LỊCH
+        const displayMechanics = mechanicsWithSchedule.slice(0, 5);
         
         displayMechanics.forEach(mechanic => {
             html += `<tr><td>${mechanic.FullName}</td>`;
@@ -912,12 +966,12 @@ function editScheduleFromModal(id) {
             html += `</tr>`;
         });
         
-        // Nếu có nhiều hơn 5 kỹ thuật viên, hiển thị thông báo
-        if (mechanics.length > 5) {
+        // Nếu có nhiều hơn 5 kỹ thuật viên CÓ LỊCH, hiển thị thông báo
+        if (mechanicsWithSchedule.length > 5) {
             html += `
                 <tr>
                     <td colspan="8" class="text-center text-muted">
-                        <small>+ ${mechanics.length - 5} kỹ thuật viên khác. Sử dụng chức năng "Xem tất cả kỹ thuật viên" để xem đầy đủ.</small>
+                        <small>+ ${mechanicsWithSchedule.length - 5} kỹ thuật viên khác. Sử dụng chức năng "Xem tất cả kỹ thuật viên" để xem đầy đủ.</small>
                     </td>
                 </tr>
             `;

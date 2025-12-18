@@ -1,5 +1,39 @@
 // mechanic-schedule.js - JavaScript cho trang lịch làm việc kỹ thuật viên
 
+/**
+ * Format Notes để hiển thị trong card (global function)
+ * Parse JSON nếu là đơn xin sửa
+ */
+function formatCardNotes(notes) {
+    if (!notes) return '';
+    
+    try {
+        const data = JSON.parse(notes);
+        
+        // Nếu có editRequest (đơn xin sửa)
+        if (data.editRequest) {
+            const edit = data.editRequest;
+            const newDate = new Date(edit.newWorkDate).toLocaleDateString('vi-VN');
+            
+            if (data.approved) {
+                return `<span class="text-success">✅ Đã duyệt sửa sang ${newDate}</span>`;
+            } else if (data.rejected) {
+                return `<span class="text-danger">❌ Từ chối sửa</span> ${data.rejectedReason ? `- ${data.rejectedReason}` : ''}`;
+            } else {
+                return `⏳ Xin đổi sang ${newDate} (${edit.newStartTime} - ${edit.newEndTime})`;
+            }
+        }
+        
+        return notes;
+    } catch (e) {
+        // Không phải JSON
+        if (notes.startsWith('[XIN NGHỈ]')) {
+            return notes.replace('[XIN NGHỈ] ', '');
+        }
+        return notes;
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Sử dụng API_CONFIG từ config.js (được load trước)
     const API_BASE_URL = window.API_CONFIG ? window.API_CONFIG.BASE_URL : 'http://localhost:3001/api';
@@ -38,7 +72,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('addScheduleBtn').addEventListener('click', openAddScheduleModal);
     document.getElementById('refreshScheduleBtn').addEventListener('click', refreshScheduleData);
     document.getElementById('saveScheduleBtn').addEventListener('click', saveSchedule);
-    document.getElementById('confirmDeleteScheduleBtn').addEventListener('click', deleteSchedule);
+    document.getElementById('confirmLeaveRequestBtn').addEventListener('click', submitLeaveRequest);
+    document.getElementById('confirmEditRequestBtn').addEventListener('click', submitEditRequest);
     document.getElementById('viewAllSchedulesBtn').addEventListener('click', viewAllSchedules);
     document.getElementById('logout-link').addEventListener('click', logout);
     document.getElementById('sidebar-logout').addEventListener('click', logout);
@@ -275,6 +310,60 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     /**
+     * Format thời gian từ HH:MM:SS thành HH:MM
+     */
+    function formatTimeDisplay(timeStr) {
+        if (!timeStr) return '--:--';
+        // Nếu là ISO string, extract time
+        if (timeStr.includes('T')) {
+            const date = new Date(timeStr);
+            return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        }
+        // Nếu là HH:MM:SS, lấy HH:MM
+        return timeStr.substring(0, 5);
+    }
+    
+    /**
+     * Format Notes để hiển thị đẹp
+     * Parse JSON nếu là đơn xin sửa đã duyệt/từ chối
+     */
+    function formatNotesDisplay(notes) {
+        if (!notes) return '<span class="text-muted">Không có ghi chú</span>';
+        
+        // Thử parse JSON
+        try {
+            const data = JSON.parse(notes);
+            
+            // Nếu có editRequest (đơn xin sửa)
+            if (data.editRequest) {
+                const edit = data.editRequest;
+                const newDate = new Date(edit.newWorkDate).toLocaleDateString('vi-VN');
+                const status = data.approved ? '✅ Đã duyệt sửa' : (data.rejected ? '❌ Đã từ chối sửa' : '⏳ Chờ duyệt');
+                
+                return `
+                    <div class="small">
+                        <span class="badge bg-info">${status}</span>
+                        <div class="mt-1">
+                            <i class="bi bi-arrow-right-circle me-1"></i>
+                            Đổi sang: <strong>${newDate}</strong> (${edit.newStartTime} - ${edit.newEndTime})
+                        </div>
+                        ${edit.reason ? `<div class="text-muted"><i class="bi bi-chat-left-text me-1"></i>${edit.reason}</div>` : ''}
+                    </div>
+                `;
+            }
+            
+            // Không phải format đặc biệt, return raw
+            return notes;
+        } catch (e) {
+            // Không phải JSON, check các prefix đặc biệt
+            if (notes.startsWith('[XIN NGHỈ]')) {
+                return `<span class="badge bg-warning text-dark">Xin nghỉ</span> ${notes.replace('[XIN NGHỈ] ', '')}`;
+            }
+            return notes;
+        }
+    }
+    
+    /**
      * Hiển thị danh sách lịch làm việc
      */
     function renderSchedulesList(schedulesData) {
@@ -292,9 +381,11 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Sắp xếp lịch làm việc theo thời gian bắt đầu mới nhất đến cũ nhất
+        // Sắp xếp lịch làm việc theo WorkDate mới nhất đến cũ nhất
         const sortedSchedules = [...schedulesData].sort((a, b) => {
-            return new Date(b.StartTime) - new Date(a.StartTime);
+            const dateA = new Date(a.WorkDate);
+            const dateB = new Date(b.WorkDate);
+            return dateB - dateA;
         });
         
         // Giới hạn hiển thị 5 lịch gần nhất
@@ -303,21 +394,13 @@ document.addEventListener('DOMContentLoaded', function() {
         let html = '';
         
         recentSchedules.forEach(schedule => {
+            // Format ngày làm việc
+            const workDate = new Date(schedule.WorkDate);
+            const formattedDate = workDate.toLocaleDateString('vi-VN');
+            
             // Format thời gian
-            const startDate = new Date(schedule.StartTime);
-            const endDate = new Date(schedule.EndTime);
-            
-            const formattedStartDate = startDate.toLocaleDateString('vi-VN') + ' ' + 
-                                      startDate.toLocaleTimeString('vi-VN', {
-                                          hour: '2-digit',
-                                          minute: '2-digit'
-                                      });
-            
-            const formattedEndDate = endDate.toLocaleDateString('vi-VN') + ' ' + 
-                                    endDate.toLocaleTimeString('vi-VN', {
-                                        hour: '2-digit',
-                                        minute: '2-digit'
-                                    });
+            const startTime = formatTimeDisplay(schedule.StartTime);
+            const endTime = formatTimeDisplay(schedule.EndTime);
             
             // Tạo badge trạng thái
             let statusBadge = '';
@@ -325,36 +408,64 @@ document.addEventListener('DOMContentLoaded', function() {
             
             switch (schedule.Status) {
                 case 'Approved':
+                case 'ApprovedEdit':
                     statusBadge = 'Đã duyệt';
-                    statusClass = 'bg-approved';
+                    statusClass = 'bg-success';
+                    break;
+                case 'ApprovedLeave':
+                    statusBadge = 'Đã duyệt nghỉ';
+                    statusClass = 'bg-warning text-dark';
                     break;
                 case 'Pending':
                     statusBadge = 'Chờ duyệt';
-                    statusClass = 'bg-pending';
+                    statusClass = 'bg-info';
+                    break;
+                case 'PendingLeave':
+                    statusBadge = 'Chờ duyệt nghỉ';
+                    statusClass = 'bg-warning text-dark';
+                    break;
+                case 'PendingEdit':
+                    statusBadge = 'Chờ duyệt sửa';
+                    statusClass = 'bg-info';
                     break;
                 case 'Rejected':
+                case 'RejectedEdit':
                     statusBadge = 'Đã từ chối';
-                    statusClass = 'bg-rejected';
+                    statusClass = 'bg-danger';
+                    break;
+                case 'RejectedLeave':
+                    statusBadge = 'Từ chối nghỉ';
+                    statusClass = 'bg-danger';
                     break;
                 default:
-                    statusBadge = 'Không xác định';
-                    statusClass = 'bg-secondary';
+                    statusBadge = schedule.Status || 'Đang hoạt động';
+                    statusClass = 'bg-primary';
             }
+            
+            // Format Notes - parse JSON nếu cần
+            let notesDisplay = formatNotesDisplay(schedule.Notes);
+            
+            // Kiểm tra có thể edit không
+            const canEdit = !['ApprovedLeave', 'PendingLeave', 'RejectedLeave', 'ApprovedEdit', 'PendingEdit', 'RejectedEdit'].includes(schedule.Status);
             
             html += `
                 <tr>
                     <td>${schedule.ScheduleID}</td>
-                    <td>${formattedStartDate}</td>
-                    <td>${formattedEndDate}</td>
+                    <td>${formattedDate}</td>
+                    <td>${startTime} - ${endTime}</td>
                     <td><span class="badge ${statusClass}">${statusBadge}</span></td>
-                    <td>${schedule.Notes || 'Không có ghi chú'}</td>
+                    <td>${notesDisplay}</td>
                     <td>
-                        <button class="btn btn-sm btn-primary btn-action" onclick="editSchedule(${schedule.ScheduleID})">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn btn-sm btn-danger btn-action" onclick="confirmDeleteSchedule(${schedule.ScheduleID})">
-                            <i class="bi bi-trash"></i>
-                        </button>
+                        ${canEdit ? `
+                            <button class="btn btn-sm btn-primary btn-action" onclick="editSchedule(${schedule.ScheduleID})">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-warning btn-action" onclick="openLeaveRequestModal(${schedule.ScheduleID})">
+                                <i class="bi bi-calendar-x"></i>
+                            </button>
+                        ` : `
+                            <span class="text-muted small">--</span>
+                        `}
                     </td>
                 </tr>
             `;
@@ -364,7 +475,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Đặt hàm xử lý sự kiện cho các nút
         window.editSchedule = editSchedule;
-        window.confirmDeleteSchedule = confirmDeleteSchedule;
+        window.openLeaveRequestModal = openLeaveRequestModal;
     }
     
     /**
@@ -466,10 +577,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('scheduleId').value = '';
         document.getElementById('isEditMode').value = 'false';
         
-        // ẨN phần đăng ký nghỉ (CHỈ DÀNH CHO EDIT)
-        document.getElementById('leaveRequestSection').style.display = 'none';
-        document.getElementById('isUnavailable').checked = false;
-        
         // Enable giờ bắt đầu/kết thúc
         document.getElementById('startTime').disabled = false;
         document.getElementById('endTime').disabled = false;
@@ -480,9 +587,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('notesLabel').textContent = 'Ghi chú';
         document.getElementById('scheduleNotes').required = false;
         document.getElementById('scheduleNotes').placeholder = 'VD: Ca sáng, ca chiều...';
-        document.getElementById('reasonRequired').style.display = 'none';
-        document.getElementById('notesHint').style.display = 'block';
-        document.getElementById('reasonHint').style.display = 'none';
         
         // Ẩn trạng thái
         document.getElementById('statusDisplay').style.display = 'none';
@@ -527,13 +631,97 @@ document.addEventListener('DOMContentLoaded', function() {
      * Mở modal chỉnh sửa lịch làm việc - V2
      * HIỂN THỊ checkbox đăng ký nghỉ
      */
-    function editSchedule(scheduleId) {
-        // Tìm lịch làm việc - ưu tiên listViewSchedules (nếu đang ở List View)
-        let schedule = listViewSchedules.find(s => s.ScheduleID === scheduleId);
+    async function editSchedule(scheduleId) {
+        // Convert scheduleId sang number để so sánh
+        const id = parseInt(scheduleId);
         
-        // Nếu không tìm thấy, tìm trong schedules (FullCalendar)
-        if (!schedule) {
-            schedule = schedules.find(s => s.ScheduleID === scheduleId);
+        // ===== CHECK CAN-EDIT TRƯỚC KHI MỞ MODAL =====
+        try {
+            const token = localStorage.getItem('token');
+            const checkResponse = await fetch(`${API_BASE_URL}/mechanics/schedules/check-can-edit/${id}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            const checkData = await checkResponse.json();
+            
+            if (checkData.success) {
+                // Nếu không thể sửa VÀ không thể nghỉ → Hiện modal khóa hoàn toàn
+                if (!checkData.canEdit && !checkData.canLeave) {
+                    showLockInfoModal(checkData.lockReason, false, id);
+                    return;
+                }
+                
+                // Nếu không thể sửa nhưng có thể nghỉ → Hiện modal khóa + nút xin nghỉ
+                if (!checkData.canEdit && checkData.canLeave) {
+                    showLockInfoModal(checkData.lockReason, true, id);
+                    return;
+                }
+                
+                // Nếu có thể sửa → Mở modal xin sửa (cần Admin duyệt)
+                openEditRequestModal(id);
+                return;
+            }
+        } catch (error) {
+            console.error('Lỗi khi kiểm tra can-edit:', error);
+            // Fallback: Mở modal xin sửa
+        }
+        // ===== KẾT THÚC CHECK CAN-EDIT =====
+        
+        // Fallback: Mở modal xin sửa
+        openEditRequestModal(id);
+    }
+    
+    /**
+     * Hiển thị modal thông báo lịch bị khóa
+     */
+    function showLockInfoModal(reason, canLeave, scheduleId) {
+        document.getElementById('lockReasonText').textContent = reason || 'Lịch này đã bị khóa.';
+        
+        const leaveBtn = document.getElementById('lockLeaveRequestBtn');
+        const hintText = document.getElementById('lockActionHint');
+        
+        if (canLeave) {
+            leaveBtn.style.display = 'inline-block';
+            hintText.innerHTML = '<i class="bi bi-lightbulb text-warning me-1"></i> Bạn vẫn có thể <strong>xin nghỉ</strong> nếu có việc bận.';
+            
+            // Gắn event listener cho nút xin nghỉ
+            leaveBtn.onclick = function() {
+                // Đóng modal khóa
+                const lockModal = bootstrap.Modal.getInstance(document.getElementById('lockInfoModal'));
+                lockModal.hide();
+                
+                // Mở modal xin nghỉ
+                setTimeout(() => {
+                    openLeaveRequestModal(scheduleId);
+                }, 300);
+            };
+        } else {
+            leaveBtn.style.display = 'none';
+            hintText.textContent = '';
+        }
+        
+        const modal = new bootstrap.Modal(document.getElementById('lockInfoModal'));
+        modal.show();
+    }
+    
+    /**
+     * Mở modal xin sửa lịch
+     */
+    function openEditRequestModal(scheduleId) {
+        const id = parseInt(scheduleId);
+        selectedScheduleId = id;
+        
+        // Tìm thông tin lịch
+        let schedule = null;
+        
+        if (window.listViewSchedules && window.listViewSchedules.length > 0) {
+            schedule = window.listViewSchedules.find(s => s.ScheduleID === id);
+        }
+        
+        if (!schedule && schedules && schedules.length > 0) {
+            schedule = schedules.find(s => s.ScheduleID === id);
         }
         
         if (!schedule) {
@@ -541,124 +729,154 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Lưu ID lịch đang chỉnh sửa
-        selectedScheduleId = scheduleId;
-        isEditMode = true;
+        // Điền thông tin lịch hiện tại
+        const workDate = new Date(schedule.WorkDate);
+        const dateStr = workDate.toLocaleDateString('vi-VN', {
+            weekday: 'long',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+        document.getElementById('editCurrentDate').textContent = dateStr;
         
-        // Cập nhật hidden fields
-        document.getElementById('scheduleId').value = schedule.ScheduleID;
-        document.getElementById('isEditMode').value = 'true';
+        // Format giờ
+        let startTime = schedule.StartTime;
+        let endTime = schedule.EndTime;
         
-        // Điền ngày
-        const workDate = schedule.WorkDate ? new Date(schedule.WorkDate) : new Date(schedule.StartTime);
-        document.getElementById('scheduleDate').value = formatDateForInput(workDate);
-        
-        // HIỂN THỊ phần đăng ký nghỉ (CHỈ KHI EDIT)
-        document.getElementById('leaveRequestSection').style.display = 'block';
-        
-        // Kiểm tra xem lịch này đã là lịch nghỉ chưa
-        const isUnavailable = schedule.Type === 'unavailable' || schedule.IsAvailable === 0;
-        document.getElementById('isUnavailable').checked = isUnavailable;
-        
-        if (isUnavailable) {
-            // ĐÃ LÀ LỊCH NGHỈ
-            document.getElementById('startTime').disabled = true;
-            document.getElementById('endTime').disabled = true;
-            document.getElementById('startTime').value = '';
-            document.getElementById('endTime').value = '';
-            document.getElementById('startTime').removeAttribute('required');
-            document.getElementById('endTime').removeAttribute('required');
-            
-            document.getElementById('notesLabel').textContent = 'Lý do nghỉ';
-            document.getElementById('scheduleNotes').required = true;
-            document.getElementById('scheduleNotes').placeholder = 'VD: Có việc gia đình, khám bệnh...';
-            document.getElementById('reasonRequired').style.display = 'inline';
-            document.getElementById('notesHint').style.display = 'none';
-            document.getElementById('reasonHint').style.display = 'block';
-            document.getElementById('saveBtnText').textContent = 'Cập nhật đơn xin nghỉ';
-            
-            // Đổi màu warning
-            document.getElementById('isUnavailable').parentElement.style.backgroundColor = '#fee2e2';
-            document.getElementById('isUnavailable').parentElement.style.borderColor = '#ef4444';
-            
-        } else {
-            // VẪN LÀ LỊCH LÀM VIỆC BÌNH THƯỜNG
-            
-            // Parse thời gian
-            let startTimeValue = '';
-            let endTimeValue = '';
-            
-            if (schedule.StartTime) {
-                const startDate = new Date(schedule.StartTime);
-                const startHour = startDate.getHours().toString().padStart(2, '0');
-                const startMin = startDate.getMinutes().toString().padStart(2, '0');
-                startTimeValue = `${startHour}:${startMin}`;
-            }
-            
-            if (schedule.EndTime) {
-                const endDate = new Date(schedule.EndTime);
-                const endHour = endDate.getHours().toString().padStart(2, '0');
-                const endMin = endDate.getMinutes().toString().padStart(2, '0');
-                endTimeValue = `${endHour}:${endMin}`;
-            }
-            
-            document.getElementById('startTime').value = startTimeValue;
-            document.getElementById('endTime').value = endTimeValue;
-            document.getElementById('startTime').disabled = false;
-            document.getElementById('endTime').disabled = false;
-            document.getElementById('startTime').setAttribute('required', 'required');
-            document.getElementById('endTime').setAttribute('required', 'required');
-            
-            document.getElementById('notesLabel').textContent = 'Ghi chú';
-            document.getElementById('scheduleNotes').required = false;
-            document.getElementById('scheduleNotes').placeholder = 'VD: Ca sáng, ca chiều...';
-            document.getElementById('reasonRequired').style.display = 'none';
-            document.getElementById('notesHint').style.display = 'block';
-            document.getElementById('reasonHint').style.display = 'none';
-            document.getElementById('saveBtnText').textContent = 'Cập nhật lịch';
-            
-            // Màu bình thường
-            document.getElementById('isUnavailable').parentElement.style.backgroundColor = '#f0f9ff';
-            document.getElementById('isUnavailable').parentElement.style.borderColor = '#bfdbfe';
+        if (startTime && startTime.includes('T')) {
+            startTime = new Date(startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        } else if (startTime && startTime.includes(':')) {
+            startTime = startTime.substring(0, 5);
         }
         
-        document.getElementById('scheduleNotes').value = schedule.Notes || '';
-        
-        // Hiển thị trạng thái
-        const statusDisplay = document.getElementById('statusDisplay');
-        const statusBadge = document.getElementById('statusBadge');
-        
-        if (schedule.Status) {
-            statusDisplay.style.display = 'block';
-            statusBadge.className = 'badge';
-            
-            switch(schedule.Status) {
-                case 'Approved':
-                    statusBadge.classList.add('bg-success');
-                    statusBadge.innerHTML = '<i class="bi bi-check-circle"></i> Đã duyệt';
-                    break;
-                case 'Pending':
-                    statusBadge.classList.add('bg-warning');
-                    statusBadge.innerHTML = '<i class="bi bi-clock"></i> Chờ duyệt';
-                    break;
-                case 'Rejected':
-                    statusBadge.classList.add('bg-danger');
-                    statusBadge.innerHTML = '<i class="bi bi-x-circle"></i> Từ chối';
-                    break;
-            }
-        } else {
-            statusDisplay.style.display = 'none';
+        if (endTime && endTime.includes('T')) {
+            endTime = new Date(endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        } else if (endTime && endTime.includes(':')) {
+            endTime = endTime.substring(0, 5);
         }
         
-        // Cập nhật tiêu đề modal
-        document.getElementById('scheduleModalLabel').textContent = 'Chỉnh sửa lịch làm việc';
+        document.getElementById('editCurrentTime').textContent = `${startTime || '--:--'} - ${endTime || '--:--'}`;
+        
+        // Set giá trị mặc định cho form mới
+        const newDateInput = document.getElementById('editNewDate');
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 2); // Tối thiểu 2 ngày
+        newDateInput.min = tomorrow.toISOString().split('T')[0];
+        
+        const maxDate = new Date();
+        maxDate.setMonth(maxDate.getMonth() + 3);
+        newDateInput.max = maxDate.toISOString().split('T')[0];
+        
+        // Mặc định ngày mới = ngày hiện tại + 2
+        newDateInput.value = tomorrow.toISOString().split('T')[0];
+        
+        // Set giờ mặc định
+        document.getElementById('editNewStartTime').value = startTime || '08:00';
+        document.getElementById('editNewEndTime').value = endTime || '17:00';
+        
+        // Clear lý do
+        document.getElementById('editReason').value = '';
+        document.getElementById('editScheduleId').value = id;
         
         // Hiển thị modal
-        const modal = new bootstrap.Modal(document.getElementById('scheduleModal'));
+        const modal = new bootstrap.Modal(document.getElementById('editRequestModal'));
         modal.show();
     }
-
+    
     /**
+     * Gửi đơn xin sửa lịch
+     */
+    async function submitEditRequest() {
+        const scheduleId = document.getElementById('editScheduleId').value;
+        const newWorkDate = document.getElementById('editNewDate').value;
+        const newStartTime = document.getElementById('editNewStartTime').value;
+        const newEndTime = document.getElementById('editNewEndTime').value;
+        const reason = document.getElementById('editReason').value.trim();
+        
+        // Validate
+        if (!newWorkDate) {
+            showAlert('Vui lòng chọn ngày mới', 'danger');
+            return;
+        }
+        
+        if (!newStartTime || !newEndTime) {
+            showAlert('Vui lòng chọn thời gian bắt đầu và kết thúc', 'danger');
+            return;
+        }
+        
+        if (newStartTime >= newEndTime) {
+            showAlert('Thời gian kết thúc phải sau thời gian bắt đầu', 'danger');
+            return;
+        }
+        
+        if (!reason) {
+            showAlert('Vui lòng nhập lý do xin sửa lịch', 'danger');
+            return;
+        }
+        
+        // Kiểm tra thời gian làm việc tối thiểu 4 tiếng
+        const start = new Date(`2000-01-01T${newStartTime}`);
+        const end = new Date(`2000-01-01T${newEndTime}`);
+        const hoursDiff = (end - start) / (1000 * 60 * 60);
+        
+        if (hoursDiff < 4) {
+            showAlert('Thời gian làm việc tối thiểu phải 4 tiếng', 'danger');
+            return;
+        }
+        
+        try {
+            const spinner = document.getElementById('editRequestSpinner');
+            const btn = document.getElementById('confirmEditRequestBtn');
+            spinner.classList.remove('d-none');
+            btn.disabled = true;
+            
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/mechanics/schedules/${scheduleId}/request-edit`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    newWorkDate,
+                    newStartTime,
+                    newEndTime,
+                    reason
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showAlert('Đã gửi đơn xin sửa lịch. Vui lòng đợi Admin duyệt.', 'success');
+                
+                // Đóng modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editRequestModal'));
+                modal.hide();
+                
+                // Reload dữ liệu
+                await loadScheduleData();
+                
+                // Refresh list view nếu đang ở list view
+                if (typeof loadScheduleListView === 'function') {
+                    loadScheduleListView();
+                }
+            } else {
+                showAlert(data.message || 'Có lỗi xảy ra khi gửi đơn', 'danger');
+            }
+            
+        } catch (error) {
+            console.error('Lỗi khi gửi đơn xin sửa:', error);
+            showAlert('Có lỗi xảy ra khi gửi đơn xin sửa', 'danger');
+        } finally {
+            const spinner = document.getElementById('editRequestSpinner');
+            const btn = document.getElementById('confirmEditRequestBtn');
+            spinner.classList.add('d-none');
+            btn.disabled = false;
+        }
+    }
+
+/**
  * Load lịch của TẤT CẢ kỹ thuật viên để hiển thị trên calendar
  */
 
@@ -673,7 +891,10 @@ async function saveSchedule() {
         const startTime = document.getElementById('startTime').value;
         const endTime = document.getElementById('endTime').value;
         const notes = document.getElementById('scheduleNotes').value;
-        const isUnavailable = document.getElementById('isUnavailable').checked;
+        
+        // Form Sửa chỉ dành cho lịch làm việc bình thường
+        // Xin nghỉ đã tách riêng ra modal khác
+        const isUnavailable = false;
         
         // Kiểm tra dữ liệu cơ bản
         if (!scheduleDate) {
@@ -693,22 +914,14 @@ async function saveSchedule() {
             }
         }
         
-        // Kiểm tra thời gian làm việc (nếu không phải đăng ký nghỉ)
-        if (!isUnavailable) {
-            if (!startTime || !endTime) {
-                showAlert('Vui lòng chọn thời gian bắt đầu và kết thúc', 'danger');
-                return;
-            }
-            
-            if (startTime >= endTime) {
-                showAlert('Thời gian kết thúc phải sau thời gian bắt đầu', 'danger');
-                return;
-            }
+        // Kiểm tra thời gian làm việc
+        if (!startTime || !endTime) {
+            showAlert('Vui lòng chọn thời gian bắt đầu và kết thúc', 'danger');
+            return;
         }
         
-        // Kiểm tra lý do nghỉ (nếu đăng ký nghỉ)
-        if (isUnavailable && !notes) {
-            showAlert('Vui lòng nhập lý do nghỉ', 'danger');
+        if (startTime >= endTime) {
+            showAlert('Thời gian kết thúc phải sau thời gian bắt đầu', 'danger');
             return;
         }
         
@@ -738,16 +951,14 @@ async function saveSchedule() {
             WorkDate: scheduleDate,
             StartTime: startTime,
             EndTime: endTime,
-            Type: isUnavailable ? 'unavailable' : 'available',
-            IsAvailable: isUnavailable ? 0 : 1,
+            Type: 'available',
+            IsAvailable: 1,
             Notes: notes
         };
         
-        // Tạo datetime cho startTime và endTime (nếu không phải nghỉ)
-        if (!isUnavailable) {
-            scheduleData.startTime = new Date(`${scheduleDate}T${startTime}`).toISOString();
-            scheduleData.endTime = new Date(`${scheduleDate}T${endTime}`).toISOString();
-        }
+        // Tạo datetime cho startTime và endTime
+        scheduleData.startTime = new Date(`${scheduleDate}T${startTime}`).toISOString();
+        scheduleData.endTime = new Date(`${scheduleDate}T${endTime}`).toISOString();
         
         let url, method;
         
@@ -771,9 +982,7 @@ async function saveSchedule() {
         const data = await response.json();
         
         if (data.success) {
-            const successMessage = isUnavailable 
-                ? 'Đơn xin nghỉ đã được gửi đến admin. Vui lòng chờ phê duyệt.'
-                : (isEditMode ? 'Cập nhật lịch làm việc thành công!' : 'Đã đăng ký lịch làm việc thành công!');
+            const successMessage = isEditMode ? 'Cập nhật lịch làm việc thành công!' : 'Đã đăng ký lịch làm việc thành công!';
             
             showAlert(successMessage, 'success');
             
@@ -798,40 +1007,113 @@ async function saveSchedule() {
 }
     
     /**
-     * Hiển thị modal xác nhận xóa lịch làm việc
+     * Mở modal xin nghỉ
      */
-    function confirmDeleteSchedule(scheduleId) {
-        // Lưu ID lịch cần xóa
-        selectedScheduleId = scheduleId;
+    function openLeaveRequestModal(scheduleId) {
+        // Lưu ID lịch cần xin nghỉ (convert sang number)
+        selectedScheduleId = parseInt(scheduleId);
+        console.log('📝 openLeaveRequestModal - ID:', selectedScheduleId);
         
-        // Hiển thị modal xác nhận
-        const modal = new bootstrap.Modal(document.getElementById('deleteScheduleModal'));
+        // Tìm thông tin lịch
+        let schedule = null;
+        
+        if (window.listViewSchedules && window.listViewSchedules.length > 0) {
+            schedule = window.listViewSchedules.find(s => s.ScheduleID === selectedScheduleId);
+        }
+        
+        if (!schedule && schedules && schedules.length > 0) {
+            schedule = schedules.find(s => s.ScheduleID === selectedScheduleId);
+        }
+        
+        console.log('📝 Found schedule for leave request:', schedule);
+        
+        // Điền thông tin lịch vào modal
+        if (schedule) {
+            // Format ngày
+            const workDate = new Date(schedule.WorkDate);
+            const dateStr = workDate.toLocaleDateString('vi-VN', {
+                weekday: 'long',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+            document.getElementById('leaveScheduleDate').textContent = dateStr;
+            
+            // Format giờ
+            let startTime = schedule.StartTime;
+            let endTime = schedule.EndTime;
+            
+            // Nếu là ISO string, parse và format
+            if (startTime && startTime.includes('T')) {
+                startTime = new Date(startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            } else if (startTime && startTime.includes(':')) {
+                startTime = startTime.substring(0, 5);
+            }
+            
+            if (endTime && endTime.includes('T')) {
+                endTime = new Date(endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            } else if (endTime && endTime.includes(':')) {
+                endTime = endTime.substring(0, 5);
+            }
+            
+            document.getElementById('leaveScheduleTime').textContent = `${startTime || '--:--'} - ${endTime || '--:--'}`;
+        } else {
+            document.getElementById('leaveScheduleDate').textContent = '--/--/----';
+            document.getElementById('leaveScheduleTime').textContent = '--:-- - --:--';
+        }
+        
+        // Clear form
+        document.getElementById('leaveReason').value = '';
+        document.getElementById('leaveScheduleId').value = selectedScheduleId;
+        
+        // Hiển thị modal
+        const modal = new bootstrap.Modal(document.getElementById('leaveRequestModal'));
         modal.show();
     }
     
+    // EXPOSE FUNCTIONS ra window để có thể gọi từ List View
+    window.editSchedule = editSchedule;
+    window.openLeaveRequestModal = openLeaveRequestModal;
+    window.openEditRequestModal = openEditRequestModal;
+    window.submitEditRequest = submitEditRequest;
+    
     /**
-     * Xóa lịch làm việc
+     * Gửi đơn xin nghỉ - Cập nhật status thành PendingLeave
      */
-    async function deleteSchedule() {
+    async function submitLeaveRequest() {
         try {
             const token = localStorage.getItem('token');
+            const leaveReason = document.getElementById('leaveReason').value.trim();
             
             if (!token || !selectedScheduleId) {
                 throw new Error('Không có thông tin cần thiết');
             }
             
-            // Hiển thị trạng thái đang xóa
-            const deleteBtn = document.getElementById('confirmDeleteScheduleBtn');
-            const deleteSpinner = document.getElementById('deleteScheduleSpinner');
-            deleteBtn.disabled = true;
-            deleteSpinner.classList.remove('d-none');
+            if (!leaveReason) {
+                showAlert('Vui lòng nhập lý do xin nghỉ', 'warning');
+                document.getElementById('leaveReason').focus();
+                return;
+            }
             
-            // Gọi API để xóa lịch làm việc
+            // Hiển thị trạng thái đang gửi
+            const submitBtn = document.getElementById('confirmLeaveRequestBtn');
+            const submitSpinner = document.getElementById('leaveRequestSpinner');
+            submitBtn.disabled = true;
+            submitSpinner.classList.remove('d-none');
+            
+            // Gọi API để cập nhật lịch thành xin nghỉ
             const response = await fetch(`${API_BASE_URL}/mechanics/schedules/${selectedScheduleId}`, {
-                method: 'DELETE',
+                method: 'PUT',
                 headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    Type: 'unavailable',
+                    IsAvailable: 0,
+                    Status: 'PendingLeave',
+                    Notes: `[XIN NGHỈ] ${leaveReason}`
+                })
             });
             
             if (!response.ok) {
@@ -842,27 +1124,32 @@ async function saveSchedule() {
             
             if (data.success) {
                 // Đóng modal
-                const modal = bootstrap.Modal.getInstance(document.getElementById('deleteScheduleModal'));
+                const modal = bootstrap.Modal.getInstance(document.getElementById('leaveRequestModal'));
                 modal.hide();
                 
                 // Hiển thị thông báo thành công
-                showSuccess('Xóa lịch làm việc thành công');
+                showSuccess('Đã gửi đơn xin nghỉ thành công. Vui lòng chờ Admin duyệt.');
                 
                 // Tải lại dữ liệu
                 await loadScheduleData();
+                
+                // Refresh list view nếu đang hiển thị
+                if (typeof refreshListView === 'function') {
+                    refreshListView();
+                }
             } else {
-                throw new Error(data.message || 'Không thể xóa lịch làm việc');
+                throw new Error(data.message || 'Không thể gửi đơn xin nghỉ');
             }
             
         } catch (error) {
-            console.error('Lỗi khi xóa lịch làm việc:', error);
-            showError('Không thể xóa lịch làm việc: ' + error.message);
+            console.error('Lỗi khi gửi đơn xin nghỉ:', error);
+            showError('Không thể gửi đơn xin nghỉ: ' + error.message);
         } finally {
             // Khôi phục trạng thái nút
-            const deleteBtn = document.getElementById('confirmDeleteScheduleBtn');
-            const deleteSpinner = document.getElementById('deleteScheduleSpinner');
-            deleteBtn.disabled = false;
-            deleteSpinner.classList.add('d-none');
+            const submitBtn = document.getElementById('confirmLeaveRequestBtn');
+            const submitSpinner = document.getElementById('leaveRequestSpinner');
+            submitBtn.disabled = false;
+            submitSpinner.classList.add('d-none');
         }
     }
     
@@ -1167,9 +1454,9 @@ async function loadWeeklyScheduleData() {
         const weekEnd = new Date(currentWeekStart);
         weekEnd.setDate(weekEnd.getDate() + 6);
         
-        // Format dates for API (YYYY-MM-DD)
-        const startDateStr = weekStart.toISOString().split('T')[0];
-        const endDateStr = weekEnd.toISOString().split('T')[0];
+        // FIX: Format dates for API (YYYY-MM-DD) using local timezone
+        const startDateStr = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
+        const endDateStr = `${weekEnd.getFullYear()}-${String(weekEnd.getMonth() + 1).padStart(2, '0')}-${String(weekEnd.getDate()).padStart(2, '0')}`;
         
         // Update header text
         const weekRangeText = `${formatDateVN(weekStart)} - ${formatDateVN(weekEnd)}`;
@@ -1216,10 +1503,19 @@ async function loadWeeklyScheduleData() {
             const allSchedules = data.schedules || data.data?.schedules || [];
             console.log('📅 Total schedules for weekly:', allSchedules.length);
             
-            // Lọc lịch trong tuần này
+            // FIX: So sánh string YYYY-MM-DD thay vì Date objects để tránh timezone issue
             const weekSchedules = allSchedules.filter(schedule => {
-                const scheduleDate = new Date(schedule.WorkDate);
-                return scheduleDate >= weekStart && scheduleDate <= weekEnd;
+                const d = new Date(schedule.WorkDate);
+                const scheduleDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                return scheduleDateStr >= startDateStr && scheduleDateStr <= endDateStr;
+            });
+            
+            console.log('🔍 Filter result:', {
+                startDateStr,
+                endDateStr,
+                totalFromAPI: allSchedules.length,
+                afterFilter: weekSchedules.length,
+                mechanic20: weekSchedules.filter(s => s.MechanicID === 20)
             });
             
             // Group theo MechanicID
@@ -1285,6 +1581,11 @@ function groupSchedulesByMechanic(schedules) {
 function renderWeeklyScheduleTable(mechanicSchedules, weekStart) {
     const tbody = document.getElementById('weeklyScheduleBody');
     
+    // DEBUG: Log tất cả mechanics
+    console.log('🔧 All mechanics in table:', mechanicSchedules.map(m => ({id: m.id, name: m.name})));
+    const mechanic20 = mechanicSchedules.find(m => m.id === 20);
+    console.log('🔧 Mechanic ID=20:', mechanic20);
+    
     if (!mechanicSchedules || mechanicSchedules.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -1314,11 +1615,14 @@ function renderWeeklyScheduleTable(mechanicSchedules, weekStart) {
         for (let i = 0; i < 7; i++) {
             const dayDate = new Date(weekStart);
             dayDate.setDate(dayDate.getDate() + i);
-            const dateStr = dayDate.toISOString().split('T')[0];
+            // FIX: Dùng local date thay vì toISOString() để tránh timezone shift
+            const dateStr = `${dayDate.getFullYear()}-${String(dayDate.getMonth() + 1).padStart(2, '0')}-${String(dayDate.getDate()).padStart(2, '0')}`;
             
             // Lọc schedules cho ngày này
             const daySchedules = mechanic.schedules.filter(s => {
-                const sDate = new Date(s.WorkDate).toISOString().split('T')[0];
+                // FIX: Dùng local date thay vì toISOString()
+                const d = new Date(s.WorkDate);
+                const sDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                 return sDate === dateStr;
             });
             
@@ -1469,8 +1773,9 @@ async function loadScheduleListView() {
         const startDate = new Date(year, month, 1);
         const endDate = new Date(year, month + 1, 0);
         
-        const startDateStr = startDate.toISOString().split('T')[0];
-        const endDateStr = endDate.toISOString().split('T')[0];
+        // FIX: Format dates using local timezone
+        const startDateStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
+        const endDateStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
         
         // Call API - Lấy tất cả lịch rồi filter ở frontend
         const token = localStorage.getItem('token');
@@ -1517,8 +1822,8 @@ async function loadScheduleListView() {
         // Override data.schedules với filtered schedules
         data.schedules = mySchedules;
         
-        // LƯU VÀO BIẾN GLOBAL
-        listViewSchedules = mySchedules;
+        // LƯU VÀO BIẾN GLOBAL để các hàm khác có thể access
+        window.listViewSchedules = mySchedules;
         
         console.log('📅 Loaded schedules for list view:', data.schedules?.length || 0);
         
@@ -1557,7 +1862,9 @@ function renderScheduleList(schedules) {
     const schedulesByDate = {};
     
     schedules.forEach(schedule => {
-        const date = new Date(schedule.WorkDate).toISOString().split('T')[0];
+        // FIX: Dùng local date thay vì toISOString()
+        const d = new Date(schedule.WorkDate);
+        const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         if (!schedulesByDate[date]) {
             schedulesByDate[date] = [];
         }
@@ -1610,7 +1917,8 @@ function renderScheduleCard(schedule) {
         WorkDate: schedule.WorkDate,
         StartTime: schedule.StartTime,
         EndTime: schedule.EndTime,
-        Type: schedule.Type
+        Type: schedule.Type,
+        Status: schedule.Status
     });
     
     const startTime = formatTimeOnly(schedule.StartTime);
@@ -1621,17 +1929,37 @@ function renderScheduleCard(schedule) {
     // Determine type class và text
     let typeClass = 'work';
     let typeText = 'Lịch làm việc';
+    let isPendingLeave = schedule.Status === 'PendingLeave';
+    let isPendingEdit = schedule.Status === 'PendingEdit';
+    let isApprovedLeave = schedule.Type === 'unavailable' && schedule.Status === 'ApprovedLeave';
+    let isApprovedEdit = schedule.Status === 'ApprovedEdit';
+    let isRejectedEdit = schedule.Status === 'RejectedEdit';
     
-    if (schedule.Type === 'appointment') {
+    if (isPendingLeave) {
+        typeClass = 'pending-leave';
+        typeText = '⏳ Chờ duyệt nghỉ';
+    } else if (isPendingEdit) {
+        typeClass = 'pending-edit';
+        typeText = '⏳ Chờ duyệt sửa';
+    } else if (isApprovedLeave) {
+        typeClass = 'unavailable';
+        typeText = '✅ Đã duyệt nghỉ';
+    } else if (isApprovedEdit) {
+        typeClass = 'approved-edit';
+        typeText = '✅ Đã duyệt sửa';
+    } else if (isRejectedEdit) {
+        typeClass = 'rejected-edit';
+        typeText = '❌ Từ chối sửa';
+    } else if (schedule.Type === 'appointment') {
         typeClass = 'appointment';
         typeText = 'Lịch hẹn';
-    } else if (schedule.Type === 'unavailable') {
-        typeClass = 'unavailable';
-        typeText = 'Không làm việc';
     }
     
+    // Nếu đã xin nghỉ, xin sửa hoặc đã được duyệt -> không cho sửa/xin nghỉ nữa
+    const canEdit = !isPendingLeave && !isPendingEdit && !isApprovedLeave && !isApprovedEdit && !isRejectedEdit;
+    
     return `
-        <div class="schedule-card" data-schedule-id="${schedule.ScheduleID}">
+        <div class="schedule-card ${isPendingLeave ? 'pending-leave-card' : ''}" data-schedule-id="${schedule.ScheduleID}">
             <div class="schedule-card-time">
                 <i class="bi bi-clock"></i>
                 ${startTime} - ${endTime}
@@ -1644,20 +1972,29 @@ function renderScheduleCard(schedule) {
             ${schedule.Notes ? `
                 <div class="schedule-card-notes">
                     <i class="bi bi-sticky me-1"></i>
-                    ${schedule.Notes}
+                    ${formatCardNotes(schedule.Notes)}
                 </div>
             ` : ''}
             
-            <div class="schedule-card-actions">
-                <button class="btn btn-sm btn-outline-primary edit-schedule-btn" 
-                        data-schedule-id="${schedule.ScheduleID}">
-                    <i class="bi bi-pencil me-1"></i>Sửa
-                </button>
-                <button class="btn btn-sm btn-outline-danger delete-schedule-btn"
-                        data-schedule-id="${schedule.ScheduleID}">
-                    <i class="bi bi-trash me-1"></i>Xóa
-                </button>
-            </div>
+            ${canEdit ? `
+                <div class="schedule-card-actions">
+                    <button class="btn btn-sm btn-outline-primary edit-schedule-btn" 
+                            data-schedule-id="${schedule.ScheduleID}">
+                        <i class="bi bi-pencil me-1"></i>Sửa
+                    </button>
+                    <button class="btn btn-sm btn-outline-warning leave-request-btn"
+                            data-schedule-id="${schedule.ScheduleID}">
+                        <i class="bi bi-calendar-x me-1"></i>Xin nghỉ
+                    </button>
+                </div>
+            ` : `
+                <div class="schedule-card-actions">
+                    <span class="text-muted small">
+                        <i class="bi bi-info-circle me-1"></i>
+                        ${isPendingLeave ? 'Đang chờ Admin duyệt' : 'Đã được Admin duyệt'}
+                    </span>
+                </div>
+            `}
         </div>
     `;
 }
@@ -1674,11 +2011,11 @@ function attachScheduleCardEvents() {
         });
     });
     
-    // Delete buttons
-    document.querySelectorAll('.delete-schedule-btn').forEach(btn => {
+    // Leave Request buttons (thay thế Delete buttons)
+    document.querySelectorAll('.leave-request-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             const scheduleId = this.getAttribute('data-schedule-id');
-            deleteScheduleFromList(scheduleId);
+            requestLeaveFromList(scheduleId);
         });
     });
 }
@@ -1688,17 +2025,27 @@ function attachScheduleCardEvents() {
  */
 function editScheduleFromList(scheduleId) {
     console.log('✏️ Edit schedule:', scheduleId);
-    // Gọi hàm editSchedule có sẵn
-    editSchedule(scheduleId);
+    // Gọi hàm editSchedule đã được expose ra window
+    if (window.editSchedule) {
+        window.editSchedule(scheduleId);
+    } else {
+        console.error('❌ editSchedule function not found');
+        alert('Không thể mở form chỉnh sửa. Vui lòng tải lại trang.');
+    }
 }
 
 /**
- * Delete schedule từ list
+ * Request leave từ list - Mở modal xin nghỉ
  */
-function deleteScheduleFromList(scheduleId) {
-    console.log('🗑️ Delete schedule:', scheduleId);
-    // Gọi hàm deleteSchedule có sẵn
-    deleteSchedule(scheduleId);
+function requestLeaveFromList(scheduleId) {
+    console.log('📝 Request leave for schedule:', scheduleId);
+    // Gọi hàm openLeaveRequestModal đã được expose ra window
+    if (window.openLeaveRequestModal) {
+        window.openLeaveRequestModal(scheduleId);
+    } else {
+        console.error('❌ openLeaveRequestModal function not found');
+        alert('Không thể mở form xin nghỉ. Vui lòng tải lại trang.');
+    }
 }
 
 /**

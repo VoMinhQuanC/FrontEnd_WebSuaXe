@@ -13,7 +13,7 @@
     <!-- CSS -->
     <link rel="stylesheet" href="css/admin.css">
     <link rel="stylesheet" href="css/admin-mechanics.css">
-
+   
     <script src="js/common-header.js"></script>
 </head>
 <body>
@@ -112,7 +112,7 @@
 
                 <!-- Thống kê tổng quan -->
                 <div class="row mb-4 justify-content-center">
-                    <div class="col-md-4 col-sm-6 mb-3">
+                    <div class="col-md-3 col-sm-6 mb-3">
                         <div class="card h-100 py-2 shadow-sm">
                             <div class="card-body text-center">
                                 <div class="d-flex justify-content-center align-items-center mb-2">
@@ -123,6 +123,39 @@
                             </div>
                         </div>
                     </div>
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <div class="card h-100 py-2 shadow-sm border-warning" id="leaveRequestCard" style="cursor: pointer;" title="Click để xem đơn xin nghỉ">
+                            <div class="card-body text-center">
+                                <div class="d-flex justify-content-center align-items-center mb-2">
+                                    <i class="bi bi-calendar-x text-warning fs-1"></i>
+                                </div>
+                                <div class="text-xs text-muted mb-1">Đơn xin nghỉ</div>
+                                <div class="h3 mb-0 font-weight-bold text-warning" id="pendingLeaveCount">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <div class="card h-100 py-2 shadow-sm border-info" id="editRequestCard" style="cursor: pointer;" title="Click để xem đơn xin sửa lịch">
+                            <div class="card-body text-center">
+                                <div class="d-flex justify-content-center align-items-center mb-2">
+                                    <i class="bi bi-pencil-square text-info fs-1"></i>
+                                </div>
+                                <div class="text-xs text-muted mb-1">Đơn xin sửa lịch</div>
+                                <div class="h3 mb-0 font-weight-bold text-info" id="pendingEditCount">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <div class="card h-100 py-2 shadow-sm">
+                            <div class="card-body text-center">
+                                <div class="d-flex justify-content-center align-items-center mb-2">
+                                    <i class="bi bi-calendar-check text-success fs-1"></i>
+                                </div>
+                                <div class="text-xs text-muted mb-1">KTV nghỉ hôm nay</div>
+                                <div class="h3 mb-0 font-weight-bold text-success" id="todayLeaveCount">0</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Bộ lọc và nút thêm mới -->
@@ -130,9 +163,15 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="card-title">Tìm kiếm kỹ thuật viên</h5>
-                        <button class="btn btn-primary" id="addMechanicBtn">
-                            <i class="bi bi-plus-circle me-1"></i> Thêm kỹ thuật viên
-                        </button>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-warning" id="manageLeaveBtn">
+                                <i class="bi bi-calendar-x me-1"></i> Đơn xin nghỉ
+                                <span class="badge bg-danger ms-1" id="leaveRequestBadge" style="display: none;">0</span>
+                            </button>
+                            <button class="btn btn-primary" id="addMechanicBtn">
+                                <i class="bi bi-plus-circle me-1"></i> Thêm kỹ thuật viên
+                            </button>
+                        </div>
                     </div>
                     <div class="row g-3">
                         <div class="col-md-4">
@@ -391,6 +430,168 @@
                         <span class="spinner-border spinner-border-sm d-none" id="deleteSpinner"></span>
                         Xác nhận xóa
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Quản lý đơn xin nghỉ -->
+    <div class="modal fade" id="leaveRequestModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">
+                        <i class="bi bi-calendar-x me-2"></i>
+                        Quản lý đơn xin nghỉ
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Tabs -->
+                    <ul class="nav nav-tabs mb-3" id="leaveRequestTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending-pane" type="button">
+                                <i class="bi bi-hourglass-split me-1"></i>
+                                Chờ duyệt <span class="badge bg-warning text-dark" id="pendingTabCount">0</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="approved-tab" data-bs-toggle="tab" data-bs-target="#approved-pane" type="button">
+                                <i class="bi bi-check-circle me-1"></i>
+                                Đã duyệt <span class="badge bg-success" id="approvedTabCount">0</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="rejected-tab" data-bs-toggle="tab" data-bs-target="#rejected-pane" type="button">
+                                <i class="bi bi-x-circle me-1"></i>
+                                Đã từ chối <span class="badge bg-danger" id="rejectedTabCount">0</span>
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <!-- Filter by date range -->
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Từ ngày</label>
+                            <input type="date" class="form-control" id="leaveFromDate">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Đến ngày</label>
+                            <input type="date" class="form-control" id="leaveToDate">
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button class="btn btn-outline-primary w-100" id="filterLeaveBtn">
+                                <i class="bi bi-filter me-1"></i> Lọc
+                            </button>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button class="btn btn-outline-secondary w-100" id="resetLeaveFilterBtn">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i> Đặt lại
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Tab content -->
+                    <div class="tab-content" id="leaveRequestTabContent">
+                        <!-- Pending Tab -->
+                        <div class="tab-pane fade show active" id="pending-pane" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="pendingLeaveTable">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>KTV</th>
+                                            <th>Ngày nghỉ</th>
+                                            <th>Ca làm</th>
+                                            <th>Lý do</th>
+                                            <th>Ngày gửi</th>
+                                            <th>Thao tác</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="pendingLeaveBody">
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted">Đang tải...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Approved Tab -->
+                        <div class="tab-pane fade" id="approved-pane" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="approvedLeaveTable">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>KTV</th>
+                                            <th>Ngày nghỉ</th>
+                                            <th>Ca làm</th>
+                                            <th>Lý do</th>
+                                            <th>Ngày duyệt</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="approvedLeaveBody">
+                                        <tr>
+                                            <td colspan="5" class="text-center text-muted">Đang tải...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Rejected Tab -->
+                        <div class="tab-pane fade" id="rejected-pane" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="rejectedLeaveTable">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>KTV</th>
+                                            <th>Ngày nghỉ</th>
+                                            <th>Ca làm</th>
+                                            <th>Lý do</th>
+                                            <th>Ngày từ chối</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rejectedLeaveBody">
+                                        <tr>
+                                            <td colspan="5" class="text-center text-muted">Đang tải...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Thống kê -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title"><i class="bi bi-bar-chart me-2"></i>Thống kê nghỉ phép</h6>
+                                    <div class="row text-center">
+                                        <div class="col-md-4">
+                                            <div class="border-end">
+                                                <h4 class="text-warning mb-0" id="statPending">0</h4>
+                                                <small class="text-muted">Chờ duyệt</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="border-end">
+                                                <h4 class="text-success mb-0" id="statApproved">0</h4>
+                                                <small class="text-muted">Đã duyệt</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <h4 class="text-danger mb-0" id="statRejected">0</h4>
+                                            <small class="text-muted">Đã từ chối</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
                 </div>
             </div>
         </div>

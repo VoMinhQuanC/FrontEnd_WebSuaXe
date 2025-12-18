@@ -106,3 +106,78 @@
     }
 
 }
+
+/* ===== LEAVE REQUEST STYLES ===== */
+
+/* Card thống kê đơn xin nghỉ */
+#leaveRequestCard {
+    transition: all 0.3s ease;
+}
+
+#leaveRequestCard:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 15px rgba(246, 194, 62, 0.3) !important;
+}
+
+/* Badge trên nút */
+#leaveRequestBadge {
+    font-size: 0.7rem;
+    padding: 3px 6px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
+}
+
+/* Modal header */
+#leaveRequestModal .modal-header {
+    background: linear-gradient(135deg, #f6c23e 0%, #f4b619 100%);
+}
+
+/* Tabs */
+#leaveRequestTabs .nav-link {
+    color: #5a5c69;
+}
+
+#leaveRequestTabs .nav-link.active {
+    font-weight: bold;
+}
+
+/* Table styles */
+#leaveRequestModal .table {
+    margin-bottom: 0;
+}
+
+#leaveRequestModal .table th {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+#leaveRequestModal .table td {
+    vertical-align: middle;
+}
+
+/* Avatar trong bảng */
+#leaveRequestModal .mechanic-avatar-placeholder {
+    width: 35px;
+    height: 35px;
+    font-size: 14px;
+}
+
+/* Action buttons */
+#leaveRequestModal .btn-success,
+#leaveRequestModal .btn-danger {
+    padding: 5px 10px;
+}
+
+/* Stats card */
+#leaveRequestModal .card.bg-light {
+    border: 1px solid #e3e6f0;
+}
+
+#leaveRequestModal .border-end {
+    border-color: #e3e6f0 !important;
+}

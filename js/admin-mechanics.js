@@ -957,4 +957,705 @@ document.addEventListener('DOMContentLoaded', function() {
             successAlert.style.display = 'none';
         }, 5000);
     }
+    
+    // =====================================================
+    // QUẢN LÝ ĐƠN (XIN SỬA LỊCH + XIN NGHỈ)
+    // =====================================================
+    
+    let leaveRequests = {
+        pending: [],
+        approved: [],
+        rejected: []
+    };
+    
+    // Filter theo loại đơn: 'all' | 'edit' | 'leave'
+    let requestTypeFilter = 'all';
+    
+    // Đăng ký sự kiện cho nút quản lý đơn
+    document.getElementById('manageLeaveBtn').addEventListener('click', openLeaveRequestModal);
+    // Click vào card xin nghỉ → mở modal với filter = 'leave'
+    document.getElementById('leaveRequestCard').addEventListener('click', function() {
+        openLeaveRequestModalWithFilter('leave');
+    });
+    // Click vào card xin sửa lịch → mở modal với filter = 'edit'
+    const editCard = document.getElementById('editRequestCard');
+    if (editCard) {
+        editCard.addEventListener('click', function() {
+            openLeaveRequestModalWithFilter('edit');
+        });
+    }
+    document.getElementById('filterLeaveBtn').addEventListener('click', filterLeaveRequests);
+    document.getElementById('resetLeaveFilterBtn').addEventListener('click', resetLeaveFilter);
+    
+    // Set default date range (30 ngày gần nhất)
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    document.getElementById('leaveToDate').value = today.toISOString().split('T')[0];
+    document.getElementById('leaveFromDate').value = thirtyDaysAgo.toISOString().split('T')[0];
+    
+    // Load thống kê đơn khi trang load
+    loadLeaveRequestStats();
+    
+    // Đổi text button từ "Đơn xin nghỉ" thành "Quản lý đơn"
+    const manageBtnEl = document.getElementById('manageLeaveBtn');
+    if (manageBtnEl) {
+        manageBtnEl.innerHTML = '<i class="bi bi-folder2-open me-1"></i> Quản lý đơn <span class="badge bg-danger ms-1" id="leaveRequestBadge" style="display: none;">0</span>';
+    }
+    
+    // Đổi title của modal
+    const modalTitle = document.querySelector('#leaveRequestModal .modal-title');
+    if (modalTitle) {
+        modalTitle.innerHTML = '<i class="bi bi-folder2-open me-2"></i>Quản lý đơn xin phép';
+    }
+    
+    /**
+     * Mở modal với filter cụ thể
+     */
+    function openLeaveRequestModalWithFilter(filterType) {
+        requestTypeFilter = filterType;
+        injectRequestTypeFilterButtons();
+        
+        // Cập nhật UI buttons
+        setTimeout(() => {
+            const buttons = document.querySelectorAll('#requestTypeFilterContainer .btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.filter === filterType) {
+                    btn.classList.add('active');
+                }
+            });
+        }, 100);
+        
+        loadAllLeaveRequests();
+        const modal = new bootstrap.Modal(document.getElementById('leaveRequestModal'));
+        modal.show();
+    }
+    
+    /**
+     * Mở modal quản lý đơn (hiển thị tất cả)
+     */
+    function openLeaveRequestModal() {
+        // Reset filter về 'all'
+        requestTypeFilter = 'all';
+        
+        // Inject filter buttons nếu chưa có
+        injectRequestTypeFilterButtons();
+        
+        loadAllLeaveRequests();
+        const modal = new bootstrap.Modal(document.getElementById('leaveRequestModal'));
+        modal.show();
+    }
+    
+    /**
+     * Inject filter buttons vào modal header
+     */
+    function injectRequestTypeFilterButtons() {
+        const filterContainer = document.getElementById('requestTypeFilterContainer');
+        if (filterContainer) return; // Đã có rồi
+        
+        // Tìm vị trí để chèn (sau card thống kê)
+        const statsCard = document.querySelector('#leaveRequestModal .card.bg-light');
+        if (!statsCard) return;
+        
+        const filterHTML = `
+            <div id="requestTypeFilterContainer" class="mt-3 mb-2">
+                <div class="btn-group w-100" role="group">
+                    <button type="button" class="btn btn-outline-secondary active" data-filter="all" onclick="filterByRequestType('all')">
+                        <i class="bi bi-list-ul me-1"></i>Tất cả
+                    </button>
+                    <button type="button" class="btn btn-outline-info" data-filter="edit" onclick="filterByRequestType('edit')">
+                        <i class="bi bi-pencil-square me-1"></i>Xin sửa lịch
+                        <span class="badge bg-info ms-1" id="editRequestCount">0</span>
+                    </button>
+                    <button type="button" class="btn btn-outline-warning" data-filter="leave" onclick="filterByRequestType('leave')">
+                        <i class="bi bi-calendar-x me-1"></i>Xin nghỉ
+                        <span class="badge bg-warning text-dark ms-1" id="leaveRequestCount">0</span>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        statsCard.insertAdjacentHTML('afterend', filterHTML);
+    }
+    
+    /**
+     * Filter theo loại đơn
+     */
+    window.filterByRequestType = function(type) {
+        requestTypeFilter = type;
+        
+        // Cập nhật UI buttons
+        const buttons = document.querySelectorAll('#requestTypeFilterContainer .btn');
+        buttons.forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.filter === type) {
+                btn.classList.add('active');
+            }
+        });
+        
+        // Re-render tables với filter mới
+        renderPendingLeaveTable(leaveRequests.pending);
+        renderApprovedLeaveTable(leaveRequests.approved);
+        renderRejectedLeaveTable(leaveRequests.rejected);
+        
+        // Cập nhật tab counts
+        updateTabCounts();
+    };
+    
+    /**
+     * Load thống kê đơn xin phép
+     */
+    async function loadLeaveRequestStats() {
+        try {
+            const token = localStorage.getItem('token');
+            
+            const response = await fetch(`${API_BASE_URL}/mechanics/leave-requests/stats`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Số đơn xin nghỉ (riêng)
+                    const pendingLeave = data.stats.pendingLeave || 0;
+                    // Số đơn xin sửa lịch (riêng)
+                    const pendingEdit = data.stats.pendingEdit || 0;
+                    // Tổng đơn chờ duyệt
+                    const totalPending = data.stats.pending || (pendingLeave + pendingEdit);
+                    
+                    // Cập nhật card "Đơn xin nghỉ"
+                    document.getElementById('pendingLeaveCount').textContent = pendingLeave;
+                    
+                    // Cập nhật card "Đơn xin sửa lịch"
+                    const editCountEl = document.getElementById('pendingEditCount');
+                    if (editCountEl) {
+                        editCountEl.textContent = pendingEdit;
+                    }
+                    
+                    // Cập nhật KTV nghỉ hôm nay
+                    document.getElementById('todayLeaveCount').textContent = data.stats.todayLeave || 0;
+                    
+                    // Cập nhật badge trên nút (tổng đơn chờ)
+                    const badge = document.getElementById('leaveRequestBadge');
+                    if (badge) {
+                        if (totalPending > 0) {
+                            badge.textContent = totalPending;
+                            badge.style.display = 'inline';
+                        } else {
+                            badge.style.display = 'none';
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error loading leave request stats:', error);
+        }
+    }
+    
+    /**
+     * Load tất cả đơn (xin sửa lịch + xin nghỉ)
+     */
+    async function loadAllLeaveRequests() {
+        try {
+            const token = localStorage.getItem('token');
+            const fromDate = document.getElementById('leaveFromDate').value;
+            const toDate = document.getElementById('leaveToDate').value;
+            
+            let url = `${API_BASE_URL}/mechanics/leave-requests`;
+            if (fromDate && toDate) {
+                url += `?from=${fromDate}&to=${toDate}`;
+            }
+            
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                if (data.success) {
+                    leaveRequests = data.leaveRequests;
+                    
+                    // Debug: Log data để kiểm tra
+                    console.log('Leave Requests Data:', leaveRequests);
+                    console.log('Approved count:', leaveRequests.approved?.length || 0);
+                    console.log('Approved data:', leaveRequests.approved);
+                    
+                    // Đếm số đơn theo loại trong pending
+                    const editPending = leaveRequests.pending.filter(r => isEditRequest(r)).length;
+                    const leavePending = leaveRequests.pending.filter(r => !isEditRequest(r)).length;
+                    
+                    // Cập nhật filter counts (trong nút filter)
+                    const editCountEl = document.getElementById('editRequestCount');
+                    const leaveCountEl = document.getElementById('leaveRequestCount');
+                    if (editCountEl) editCountEl.textContent = editPending;
+                    if (leaveCountEl) leaveCountEl.textContent = leavePending;
+                    
+                    renderPendingLeaveTable(leaveRequests.pending);
+                    renderApprovedLeaveTable(leaveRequests.approved);
+                    renderRejectedLeaveTable(leaveRequests.rejected);
+                    
+                    // Cập nhật tab counts và thống kê (theo filter hiện tại)
+                    updateTabCounts();
+                }
+            }
+        } catch (error) {
+            console.error('Error loading leave requests:', error);
+            showError('Không thể tải danh sách đơn');
+        }
+    }
+    
+    /**
+     * Cập nhật tab counts dựa trên filter
+     */
+    function updateTabCounts() {
+        const pendingFiltered = filterRequestsByType(leaveRequests.pending);
+        const approvedFiltered = filterRequestsByType(leaveRequests.approved);
+        const rejectedFiltered = filterRequestsByType(leaveRequests.rejected);
+        
+        document.getElementById('pendingTabCount').textContent = pendingFiltered.length;
+        document.getElementById('approvedTabCount').textContent = approvedFiltered.length;
+        document.getElementById('rejectedTabCount').textContent = rejectedFiltered.length;
+        
+        // Cập nhật thống kê theo filter
+        updateStats(pendingFiltered.length, approvedFiltered.length, rejectedFiltered.length);
+    }
+    
+    /**
+     * Cập nhật thống kê theo filter hiện tại
+     */
+    function updateStats(pending, approved, rejected) {
+        document.getElementById('statPending').textContent = pending;
+        document.getElementById('statApproved').textContent = approved;
+        document.getElementById('statRejected').textContent = rejected;
+        
+        // Cập nhật title thống kê theo filter
+        const statsTitle = document.querySelector('#leaveRequestModal .card.bg-light h6');
+        if (statsTitle) {
+            if (requestTypeFilter === 'edit') {
+                statsTitle.innerHTML = '<i class="bi bi-bar-chart me-2"></i>Thống kê đơn xin sửa lịch';
+            } else if (requestTypeFilter === 'leave') {
+                statsTitle.innerHTML = '<i class="bi bi-bar-chart me-2"></i>Thống kê đơn xin nghỉ';
+            } else {
+                statsTitle.innerHTML = '<i class="bi bi-bar-chart me-2"></i>Thống kê tất cả đơn';
+            }
+        }
+    }
+    
+    /**
+     * Filter requests theo loại đơn
+     */
+    /**
+     * Kiểm tra đơn có phải là đơn xin sửa lịch không
+     */
+    function isEditRequest(req) {
+        // Check RequestType first (backend trả về)
+        if (req.RequestType === 'edit') return true;
+        // Check Status cho đơn chờ duyệt
+        if (req.Status === 'PendingEdit') return true;
+        // Check Status cho đơn đã duyệt/từ chối
+        if (req.Status === 'ApprovedEdit') return true;
+        if (req.Status === 'RejectedEdit') return true;
+        // Check OriginalRequestType (backup)
+        if (req.OriginalRequestType === 'edit') return true;
+        // Kiểm tra Notes có chứa editRequest không
+        if (req.Notes) {
+            try {
+                const notes = JSON.parse(req.Notes);
+                if (notes.editRequest) return true;
+            } catch (e) {
+                // Notes không phải JSON, kiểm tra string
+                if (req.Notes.includes('"editRequest"') || req.Notes.includes('editRequest')) return true;
+            }
+        }
+        return false;
+    }
+    
+    function filterRequestsByType(requests) {
+        if (requestTypeFilter === 'all') return requests;
+        
+        return requests.filter(req => {
+            const isEdit = isEditRequest(req);
+            if (requestTypeFilter === 'edit') return isEdit;
+            if (requestTypeFilter === 'leave') return !isEdit;
+            return true;
+        });
+    }
+    
+    /**
+     * Render bảng đơn chờ duyệt (cả xin nghỉ và xin sửa)
+     */
+    function renderPendingLeaveTable(requests) {
+        const tbody = document.getElementById('pendingLeaveBody');
+        
+        // Apply filter theo loại đơn
+        const filteredRequests = filterRequestsByType(requests);
+        
+        if (!filteredRequests || filteredRequests.length === 0) {
+            const filterMsg = requestTypeFilter === 'edit' ? 'xin sửa lịch' : 
+                             requestTypeFilter === 'leave' ? 'xin nghỉ' : '';
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                        Không có đơn ${filterMsg} nào đang chờ duyệt
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        let html = '';
+        filteredRequests.forEach(req => {
+            const workDate = new Date(req.WorkDate).toLocaleDateString('vi-VN');
+            const startTime = formatTime(req.StartTime);
+            const endTime = formatTime(req.EndTime);
+            const createdAt = req.CreatedAt ? new Date(req.CreatedAt).toLocaleDateString('vi-VN') : '--';
+            
+            // Xác định loại đơn
+            const isEditReq = isEditRequest(req);
+            
+            // Parse thông tin xin sửa nếu có
+            let editInfo = null;
+            let notesDisplay = req.Notes ? req.Notes.replace('[XIN NGHỈ] ', '') : 'Không có lý do';
+            
+            if (isEditReq && req.Notes) {
+                try {
+                    const notesData = JSON.parse(req.Notes);
+                    if (notesData.editRequest) {
+                        editInfo = notesData.editRequest;
+                        notesDisplay = editInfo.reason || 'Không có lý do';
+                    }
+                } catch (e) {
+                    // Notes không phải JSON, giữ nguyên
+                }
+            }
+            
+            // Badge loại đơn
+            const typeBadge = isEditReq 
+                ? '<span class="badge bg-info me-1"><i class="bi bi-pencil-square"></i> Xin sửa</span>'
+                : '<span class="badge bg-warning text-dark me-1"><i class="bi bi-calendar-x"></i> Xin nghỉ</span>';
+            
+            // Hiển thị thông tin sửa nếu có
+            let editInfoHtml = '';
+            if (editInfo) {
+                const newDate = new Date(editInfo.newWorkDate).toLocaleDateString('vi-VN');
+                editInfoHtml = `
+                    <div class="mt-1 small">
+                        <span class="text-muted">Đổi sang:</span>
+                        <span class="badge bg-info">${newDate}</span>
+                        <span class="text-muted">${editInfo.newStartTime} - ${editInfo.newEndTime}</span>
+                    </div>
+                `;
+            }
+            
+            html += `
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="mechanic-avatar-placeholder me-2 ${isEditReq ? 'bg-info' : ''}">${req.MechanicName ? req.MechanicName.charAt(0).toUpperCase() : 'K'}</div>
+                            <div>
+                                <strong>${req.MechanicName || 'N/A'}</strong>
+                                <br><small class="text-muted">${req.Phone || ''}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        ${typeBadge}
+                        <span class="badge bg-light text-dark">${workDate}</span>
+                        ${editInfoHtml}
+                    </td>
+                    <td>${startTime} - ${endTime}</td>
+                    <td>
+                        <span class="text-truncate d-inline-block" style="max-width: 200px;" title="${notesDisplay}">
+                            ${notesDisplay}
+                        </span>
+                    </td>
+                    <td>${createdAt}</td>
+                    <td>
+                        <button class="btn btn-sm btn-success me-1" onclick="approveLeaveRequest(${req.ScheduleID})" title="Duyệt">
+                            <i class="bi bi-check-lg"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="rejectLeaveRequest(${req.ScheduleID})" title="Từ chối">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
+    }
+    
+    /**
+     * Render bảng đơn đã duyệt
+     */
+    function renderApprovedLeaveTable(requests) {
+        const tbody = document.getElementById('approvedLeaveBody');
+        
+        // Apply filter theo loại đơn
+        const filteredRequests = filterRequestsByType(requests);
+        
+        if (!filteredRequests || filteredRequests.length === 0) {
+            const filterMsg = requestTypeFilter === 'edit' ? 'xin sửa lịch' : 
+                             requestTypeFilter === 'leave' ? 'xin nghỉ' : '';
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                        Không có đơn ${filterMsg} nào đã được duyệt
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        let html = '';
+        filteredRequests.forEach(req => {
+            const workDate = new Date(req.WorkDate).toLocaleDateString('vi-VN');
+            const startTime = formatTime(req.StartTime);
+            const endTime = formatTime(req.EndTime);
+            const updatedAt = req.UpdatedAt ? new Date(req.UpdatedAt).toLocaleDateString('vi-VN') : '--';
+            
+            // Xác định loại đơn
+            const isEditReq = isEditRequest(req);
+            let notesDisplay = req.Notes ? req.Notes.replace('[XIN NGHỈ] ', '') : 'Không có lý do';
+            
+            // Parse lý do từ Notes nếu là đơn xin sửa
+            if (isEditReq && req.Notes) {
+                try {
+                    const notesData = JSON.parse(req.Notes);
+                    if (notesData.editRequest) {
+                        notesDisplay = notesData.editRequest.reason || 'Không có lý do';
+                    }
+                } catch (e) {
+                    // Notes không phải JSON
+                }
+            }
+            
+            // Badge loại đơn
+            const typeBadge = isEditReq 
+                ? '<span class="badge bg-info me-1"><i class="bi bi-pencil-square"></i> Xin sửa</span>'
+                : '<span class="badge bg-warning text-dark me-1"><i class="bi bi-calendar-x"></i> Xin nghỉ</span>';
+            
+            html += `
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="mechanic-avatar-placeholder me-2 ${isEditReq ? 'bg-info' : 'bg-success'}">${req.MechanicName ? req.MechanicName.charAt(0).toUpperCase() : 'K'}</div>
+                            <div>
+                                <strong>${req.MechanicName || 'N/A'}</strong>
+                                <br><small class="text-muted">${req.Phone || ''}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        ${typeBadge}
+                        <span class="badge bg-success">${workDate}</span>
+                    </td>
+                    <td>${startTime} - ${endTime}</td>
+                    <td>
+                        <span class="text-truncate d-inline-block" style="max-width: 200px;" title="${notesDisplay}">
+                            ${notesDisplay}
+                        </span>
+                    </td>
+                    <td>${updatedAt}</td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
+    }
+    
+    /**
+     * Render bảng đơn đã từ chối
+     */
+    function renderRejectedLeaveTable(requests) {
+        const tbody = document.getElementById('rejectedLeaveBody');
+        
+        // Apply filter theo loại đơn
+        const filteredRequests = filterRequestsByType(requests);
+        
+        if (!filteredRequests || filteredRequests.length === 0) {
+            const filterMsg = requestTypeFilter === 'edit' ? 'xin sửa lịch' : 
+                             requestTypeFilter === 'leave' ? 'xin nghỉ' : '';
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                        Không có đơn ${filterMsg} nào bị từ chối
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        let html = '';
+        filteredRequests.forEach(req => {
+            const workDate = new Date(req.WorkDate).toLocaleDateString('vi-VN');
+            const startTime = formatTime(req.StartTime);
+            const endTime = formatTime(req.EndTime);
+            const updatedAt = req.UpdatedAt ? new Date(req.UpdatedAt).toLocaleDateString('vi-VN') : '--';
+            
+            // Xác định loại đơn
+            const isEditReq = isEditRequest(req);
+            let notesDisplay = req.Notes ? req.Notes.replace('[XIN NGHỈ] ', '') : 'Không có lý do';
+            
+            // Parse lý do từ Notes nếu là đơn xin sửa
+            if (isEditReq && req.Notes) {
+                try {
+                    const notesData = JSON.parse(req.Notes);
+                    if (notesData.editRequest) {
+                        notesDisplay = notesData.editRequest.reason || 'Không có lý do';
+                    }
+                } catch (e) {
+                    // Notes không phải JSON
+                }
+            }
+            
+            // Badge loại đơn
+            const typeBadge = isEditReq 
+                ? '<span class="badge bg-info me-1"><i class="bi bi-pencil-square"></i> Xin sửa</span>'
+                : '<span class="badge bg-warning text-dark me-1"><i class="bi bi-calendar-x"></i> Xin nghỉ</span>';
+            
+            html += `
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="mechanic-avatar-placeholder me-2 ${isEditReq ? 'bg-info' : 'bg-danger'}">${req.MechanicName ? req.MechanicName.charAt(0).toUpperCase() : 'K'}</div>
+                            <div>
+                                <strong>${req.MechanicName || 'N/A'}</strong>
+                                <br><small class="text-muted">${req.Phone || ''}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        ${typeBadge}
+                        <span class="badge bg-danger">${workDate}</span>
+                    </td>
+                    <td>${startTime} - ${endTime}</td>
+                    <td>
+                        <span class="text-truncate d-inline-block" style="max-width: 200px;" title="${notesDisplay}">
+                            ${notesDisplay}
+                        </span>
+                    </td>
+                    <td>${updatedAt}</td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
+    }
+    
+    /**
+     * Format time từ ISO hoặc HH:MM:SS
+     */
+    function formatTime(timeStr) {
+        if (!timeStr) return '--:--';
+        
+        if (timeStr.includes('T')) {
+            return new Date(timeStr).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        }
+        
+        return timeStr.substring(0, 5);
+    }
+    
+    /**
+     * Duyệt đơn xin nghỉ
+     */
+    window.approveLeaveRequest = async function(scheduleId) {
+        if (!confirm('Bạn có chắc chắn muốn DUYỆT đơn xin nghỉ này?')) {
+            return;
+        }
+        
+        try {
+            const token = localStorage.getItem('token');
+            
+            const response = await fetch(`${API_BASE_URL}/mechanics/schedules/${scheduleId}/approve`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showSuccessMessage('Đã duyệt đơn xin nghỉ thành công!');
+                loadAllLeaveRequests();
+                loadLeaveRequestStats();
+            } else {
+                showError(data.message || 'Không thể duyệt đơn xin nghỉ');
+            }
+        } catch (error) {
+            console.error('Error approving leave request:', error);
+            showError('Lỗi khi duyệt đơn xin nghỉ');
+        }
+    };
+    
+    /**
+     * Từ chối đơn xin nghỉ
+     */
+    window.rejectLeaveRequest = async function(scheduleId) {
+        const reason = prompt('Nhập lý do từ chối (không bắt buộc):');
+        
+        if (reason === null) {
+            return; // User cancelled
+        }
+        
+        try {
+            const token = localStorage.getItem('token');
+            
+            const response = await fetch(`${API_BASE_URL}/mechanics/schedules/${scheduleId}/reject`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ reason })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showSuccessMessage('Đã từ chối đơn xin nghỉ!');
+                loadAllLeaveRequests();
+                loadLeaveRequestStats();
+            } else {
+                showError(data.message || 'Không thể từ chối đơn xin nghỉ');
+            }
+        } catch (error) {
+            console.error('Error rejecting leave request:', error);
+            showError('Lỗi khi từ chối đơn xin nghỉ');
+        }
+    };
+    
+    /**
+     * Lọc đơn xin nghỉ theo ngày
+     */
+    function filterLeaveRequests() {
+        loadAllLeaveRequests();
+    }
+    
+    /**
+     * Reset bộ lọc
+     */
+    function resetLeaveFilter() {
+        const today = new Date();
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        document.getElementById('leaveToDate').value = today.toISOString().split('T')[0];
+        document.getElementById('leaveFromDate').value = thirtyDaysAgo.toISOString().split('T')[0];
+        
+        loadAllLeaveRequests();
+    }
 });
