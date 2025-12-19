@@ -1,6 +1,291 @@
 // booking.js - Quản lý đặt lịch sửa xe
+
+// ========================================
+// THÊM ĐOẠN NÀY VÀO ĐẦU FILE booking.js
+// (Ngay sau dòng đầu tiên)
+// ========================================
+
+// Function to update Step 4 confirmation info
+function updateStep4Confirmation() {
+    console.log('🔄 Updating Step 4...');
+    
+    setTimeout(() => {
+        // Get services from Step 1
+        const serviceCards = document.querySelectorAll('.service-card.selected');
+        let servicesHtml = '';
+        let totalPrice = 0;
+        
+        serviceCards.forEach(card => {
+            const name = card.querySelector('h5')?.textContent || '';
+            const priceText = card.querySelector('.service-price')?.textContent || '0';
+            const price = parseInt(priceText.replace(/[^0-9]/g, '')) || 0;
+            
+            // Tạo div để tránh quote issues
+            const serviceDiv = document.createElement('div');
+            serviceDiv.className = 'd-flex justify-content-between mb-2';
+            
+            const nameDiv = document.createElement('div');
+            nameDiv.textContent = name;
+            
+            const priceDiv = document.createElement('div');
+            priceDiv.textContent = price.toLocaleString('vi-VN') + ' ₫';
+            
+            serviceDiv.appendChild(nameDiv);
+            serviceDiv.appendChild(priceDiv);
+            
+            servicesHtml += serviceDiv.outerHTML;
+            totalPrice += price;
+        });
+        
+        // Update services
+        const confirmServices = document.getElementById('confirmServices');
+        const confirmTotalPrice = document.getElementById('confirmTotalPrice');
+        if (confirmServices) {
+            confirmServices.innerHTML = servicesHtml || '<p>Chưa chọn dịch vụ</p>';
+            console.log('✅ Services updated');
+        }
+        if (confirmTotalPrice) {
+            confirmTotalPrice.textContent = totalPrice.toLocaleString('vi-VN') + ' VNĐ';
+        }
+        
+        // Get vehicle from Step 2
+        const licensePlate = document.getElementById('licensePlate')?.value || 'N/A';
+        const brand = document.getElementById('brand')?.value || 'N/A';
+        const model = document.getElementById('model')?.value || 'N/A';
+        const year = document.getElementById('vehicleYear')?.value || 'N/A';
+        
+        const confirmVehicle = document.getElementById('confirmVehicle');
+        if (confirmVehicle) {
+            const vehicleHTML = 
+                '<p><strong>Biển số:</strong> ' + licensePlate + '</p>' +
+                '<p><strong>Hãng xe:</strong> ' + brand + '</p>' +
+                '<p><strong>Dòng xe:</strong> ' + model + '</p>' +
+                '<p><strong>Năm sản xuất:</strong> ' + year + '</p>';
+            confirmVehicle.innerHTML = vehicleHTML;
+            console.log('✅ Vehicle updated');
+        }
+        
+        // Get datetime from Step 3
+        const date = document.getElementById('bookingDate')?.value || 'N/A';
+        const timeBtn = document.querySelector('.btn-time-slot.selected');
+        const time = timeBtn ? timeBtn.textContent.trim() : 'N/A';
+        const mechanicCard = document.querySelector('.mechanic-card.selected');
+        const mechanicNameEl = mechanicCard ? mechanicCard.querySelector('.mechanic-name') : null;
+        const mechanic = mechanicNameEl ? mechanicNameEl.textContent.trim() : 'Chưa chọn';
+        console.log('Mechanic card:', mechanicCard);
+        console.log('Mechanic name element:', mechanicNameEl);
+        console.log('Mechanic name:', mechanic);
+        
+        // Calculate total time
+        let totalMinutes = 0;
+        serviceCards.forEach(card => {
+            const timeText = card.querySelector('.service-time')?.textContent || '0';
+            const minutes = parseInt(timeText.replace(/[^0-9]/g, '')) || 0;
+            totalMinutes += minutes;
+        });
+        
+        const hours = Math.floor(totalMinutes / 60);
+        const mins = totalMinutes % 60;
+        const durationText = hours > 0 ? (hours + ' giờ ' + mins + ' phút') : (mins + ' phút');
+        
+        const confirmDateTime = document.getElementById('confirmDateTime');
+        if (confirmDateTime) {
+            const dateTimeHTML = 
+                '<p><strong>Ngày:</strong> ' + date + '</p>' +
+                '<p><strong>Thời gian bắt đầu:</strong> ' + time + '</p>' +
+                '<p><strong>Tổng thời gian dự kiến:</strong> ' + durationText + '</p>' +
+                '<p><strong>Kỹ thuật viên:</strong> ' + mechanic + '</p>';
+            confirmDateTime.innerHTML = dateTimeHTML;
+            console.log('✅ DateTime updated');
+        }
+        
+        console.log('✅ Step 4 updated successfully!');
+    }, 100);
+}
+
+// Expose to global scope
+window.updateStep4Confirmation = updateStep4Confirmation;
+
+
+
+// Function to setup payment method listeners
+function setupPaymentListeners() {
+    console.log('🔧 Setting up payment listeners...');
+    
+    const paymentMethodRadios = document.querySelectorAll('input[name="paymentMethod"]');
+    
+    if (paymentMethodRadios.length === 0) {
+        console.log('❌ No payment method radios found');
+        return;
+    }
+    
+    paymentMethodRadios.forEach(radio => {
+        // Remove old listeners by cloning
+        const newRadio = radio.cloneNode(true);
+        radio.parentNode.replaceChild(newRadio, radio);
+    });
+    
+    // Get fresh references
+    const updatedRadios = document.querySelectorAll('input[name="paymentMethod"]');
+    
+    updatedRadios.forEach(radio => {
+        radio.addEventListener('change', async function() {
+            if (this.checked) {
+                console.log('💳 Payment method selected:', this.value);
+                
+                const paymentInfo = document.getElementById('paymentInfo');
+                const paymentStatusInfo = document.getElementById('paymentStatusInfo');
+                
+                if (this.value === 'Chuyển khoản') {
+                    console.log('🔄 Loading QR code...');
+                    
+                    if (paymentInfo) {
+                        paymentInfo.innerHTML = `
+                            <div class="text-center py-4">
+                                <div class="spinner-border text-danger" role="status"></div>
+                                <p class="mt-2 text-muted">Đang tải mã QR thanh toán...</p>
+                            </div>
+                        `;
+                        paymentInfo.style.display = 'block';
+                    }
+                    
+                    // Get selected services to calculate total
+                    const serviceCards = document.querySelectorAll('.service-card.selected');
+                    let totalPrice = 0;
+                    serviceCards.forEach(card => {
+                        const priceText = card.querySelector('.service-price')?.textContent || '0';
+                        const price = parseInt(priceText.replace(/[^0-9]/g, '')) || 0;
+                        totalPrice += price;
+                    });
+                    
+                    const tempId = 'BK' + Date.now();
+                    
+                    try {
+                        // Use VietQR public API
+                        // Bank: VCB (Vietcombank), Account: 1234567890, Amount: totalPrice
+                        const bankInfo = {
+                            bankId: '970436', // Vietcombank
+                            accountNo: '1034567890',
+                            accountName: 'CONG TY TNHH SUA XE VQTBIKE',
+                            amount: totalPrice,
+                            description: tempId
+                        };
+                        
+                        const qrUrl = `https://img.vietqr.io/image/${bankInfo.bankId}-${bankInfo.accountNo}-compact2.jpg?amount=${bankInfo.amount}&addInfo=${encodeURIComponent(bankInfo.description)}&accountName=${encodeURIComponent(bankInfo.accountName)}`;
+                        
+                        const response = { ok: true };
+                        const paymentData = { qrDataURL: qrUrl };
+                        
+                        if (response.ok) {
+                            if (paymentInfo && paymentData.qrDataURL) {
+                                paymentInfo.innerHTML = `
+                                    <div class="text-center">
+                                        <h5 class="text-primary mb-3">
+                                            <i class="bi bi-qr-code me-2"></i>Quét mã QR để thanh toán
+                                        </h5>
+                                        <img src="${paymentData.qrDataURL}" 
+                                             alt="QR Code" 
+                                             class="img-fluid mb-3" 
+                                             style="max-width: 300px; border: 2px solid #ddd; padding: 10px;">
+                                        <div class="alert alert-info">
+                                            <p class="mb-2"><strong>Số tiền:</strong> ${totalPrice.toLocaleString('vi-VN')} ₫</p>
+                                            <p class="mb-2"><strong>Nội dung:</strong> ${tempId}</p>
+                                            <p class="mb-0"><small>Vui lòng chuyển khoản đúng nội dung để xác nhận tự động</small></p>
+                                        </div>
+                                    </div>
+                                `;
+                                console.log('✅ QR code displayed');
+                            }
+                        } else {
+                            throw new Error('Failed to load QR code');
+                        }
+                    } catch (error) {
+                        console.error('❌ QR code error:', error);
+                        if (paymentInfo) {
+                            paymentInfo.innerHTML = `
+                                <div class="alert alert-danger">
+                                    <i class="bi bi-x-circle me-2"></i>
+                                    <strong>Không thể tải mã QR.</strong><br>
+                                    <small>Vui lòng thử lại hoặc chọn thanh toán tại tiệm.</small>
+                                </div>
+                            `;
+                        }
+                    }
+                    
+                    if (paymentStatusInfo) {
+                        paymentStatusInfo.innerHTML = `
+                            <div class="alert alert-info mt-3">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Vui lòng chuyển khoản theo thông tin bên dưới để hoàn tất đặt lịch.
+                            </div>
+                        `;
+                        paymentStatusInfo.style.display = 'block';
+                    }
+                    
+                } else {
+                    // Thanh toán tại tiệm
+                    console.log('💵 Cash payment selected');
+                    
+                    if (paymentInfo) {
+                        paymentInfo.style.display = 'none';
+                    }
+                    
+                    if (paymentStatusInfo) {
+                        paymentStatusInfo.innerHTML = `
+                            <div class="alert alert-warning mt-3">
+                                <i class="bi bi-wallet me-2"></i>
+                                Bạn sẽ thanh toán trực tiếp tại cửa hàng khi đến sửa xe.
+                            </div>
+                        `;
+                        paymentStatusInfo.style.display = 'block';
+                    }
+                }
+            }
+        });
+    });
+    
+    console.log('✅ Payment listeners setup complete!');
+}
+
+// Expose to global
+window.setupPaymentListeners = setupPaymentListeners;
+
+console.log('✅ updateStep4Confirmation loaded!');
+
+// ========================================
+// KẾT THÚC ĐOẠN CODE THÊM
+// Phần code cũ của booking.js tiếp tục bên dưới...
+// ========================================
+
+// Global API URLs
+const PAYMENT_API_URL = 'https://suaxeweb-production.up.railway.app/api/payment';
+
+// Global helper functions
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('vi-VN', {
+        style: 'currency',
+        currency: 'VND',
+        maximumFractionDigits: 0
+    }).format(amount);
+}
+
+function formatDuration(minutes) {
+    if (!minutes) return "0 phút";
+    if (minutes < 60) return `${minutes} phút`;
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    if (remainingMinutes === 0) return `${hours} giờ`;
+    return `${hours} giờ ${remainingMinutes} phút`;
+}
+
+
+// Global API URLs
+
+// Global helper functions
+
 document.addEventListener('DOMContentLoaded', function() {
     const API_URL = 'https://suaxeweb-production.up.railway.app/api';
+
     
     // Biến toàn cục lưu trữ dữ liệu đặt lịch
     const bookingData = {
@@ -1194,54 +1479,125 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Xử lý riêng cho bước 5
         if (step === 5) {
-            console.log('Đang xử lý bước 5');
-            // Validate phương thức thanh toán
-            const paymentMethodRadios = document.querySelectorAll('input[name="paymentMethod"]');
-            let paymentMethodSelected = false;
-            
-            paymentMethodRadios.forEach(radio => {
-                if (radio.checked) {
-                    paymentMethodSelected = true;
-                    // Lưu phương thức thanh toán vào bookingData
-                    bookingData.paymentMethod = radio.value;
-                    
-                    // Hiển thị thông tin thanh toán nếu chọn chuyển khoản
-                    const paymentInfo = document.getElementById('paymentInfo');
-                    if (radio.value === 'Chuyển khoản' && paymentInfo) {
-                        const totalPrice = bookingData.services.reduce((sum, service) => sum + service.price, 0);
-                        const paymentAmountElement = document.getElementById('paymentAmount');
-                        if (paymentAmountElement) {
-                            paymentAmountElement.textContent = formatCurrency(totalPrice);
-                        }
-                        paymentInfo.style.display = 'block';
-                    } else if (paymentInfo) {
-                        paymentInfo.style.display = 'none';
-                    }
-                }
-            });
-            
-            // Nếu chưa chọn phương thức thanh toán, chọn mặc định
-            if (!paymentMethodSelected && paymentMethodRadios.length > 0) {
-                paymentMethodRadios[0].checked = true;
-                bookingData.paymentMethod = paymentMethodRadios[0].value;
-            }
+    console.log('Đang xử lý bước 5 - Payment');
+    
+    // Xóa event listeners cũ (nếu có)
+    const paymentMethodRadios = document.querySelectorAll('input[name="paymentMethod"]');
+    
+    paymentMethodRadios.forEach(radio => {
+        // Clone để xóa listeners cũ
+        const newRadio = radio.cloneNode(true);
+        radio.parentNode.replaceChild(newRadio, radio);
+    });
+    
+    // Lấy lại references sau khi clone
+    const updatedRadios = document.querySelectorAll('input[name="paymentMethod"]');
+    let paymentMethodSelected = false;
+    
+    // Thiết lập event listeners MỚI
+    updatedRadios.forEach(radio => {
+        if (radio.checked) {
+            paymentMethodSelected = true;
+            bookingData.paymentMethod = radio.value;
         }
         
-        // Cuộn tới đầu form đặt lịch
-        const bookingFormContainer = document.getElementById('bookingFormContainer');
-        if (bookingFormContainer) {
-            bookingFormContainer.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
-            });
-        } else {
-            // Nếu không tìm thấy container, cuộn về đầu trang
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-        }
+        // ✅ THÊM EVENT LISTENER cho mỗi radio button
+        radio.addEventListener('change', async function() {
+            if (this.checked) {
+                console.log('💳 Chọn phương thức:', this.value);
+                bookingData.paymentMethod = this.value;
+                
+                const paymentInfo = document.getElementById('paymentInfo');
+                const paymentStatusInfo = document.getElementById('paymentStatusInfo');
+                
+                if (this.value === 'Chuyển khoản') {
+                    // ✅ HIỂN THỊ QR CODE
+                    console.log('🔄 Loading QR code...');
+                    
+                    // Tính tổng tiền
+                    const totalPrice = bookingData.services.reduce((sum, service) => sum + service.price, 0);
+                    
+                    // Hiển thị loading
+                    if (paymentInfo) {
+                        paymentInfo.innerHTML = `
+                            <div class="text-center py-4">
+                                <div class="spinner-border text-danger" role="status"></div>
+                                <p class="mt-2 text-muted">Đang tải mã QR thanh toán...</p>
+                            </div>
+                        `;
+                        paymentInfo.style.display = 'block';
+                    }
+                    
+                    // Tạo temporary appointmentId để load QR
+                    // Sau khi đặt lịch thành công, sẽ update với ID thật
+                    const tempId = `TEMP${Date.now()}`;
+                    
+                    // Load QR code
+                    const paymentData = await loadPaymentQR(totalPrice, tempId);
+                    
+                    if (paymentData && paymentInfo) {
+                        // ✅ Hiển thị QR
+                        displayPaymentQR(paymentData, totalPrice);
+                        console.log('✅ QR code displayed');
+                    } else if (paymentInfo) {
+                        // ❌ Hiển thị lỗi
+                        paymentInfo.innerHTML = `
+                            <div class="alert alert-danger">
+                                <i class="bi bi-x-circle me-2"></i>
+                                <strong>Không thể tải mã QR.</strong><br>
+                                <small>Vui lòng thử lại hoặc chọn thanh toán tại tiệm.</small>
+                            </div>
+                        `;
+                        console.error('❌ Failed to load QR');
+                    }
+                    
+                    // Hiển thị status info
+                    if (paymentStatusInfo) {
+                        paymentStatusInfo.innerHTML = `
+                            <div class="alert alert-info mt-3">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Vui lòng chuyển khoản theo thông tin bên dưới để hoàn tất đặt lịch.
+                            </div>
+                        `;
+                        paymentStatusInfo.style.display = 'block';
+                    }
+                    
+                } else {
+                    // ❌ ẨN QR CODE - Thanh toán tại tiệm
+                    console.log('💵 Thanh toán tại tiệm - Ẩn QR');
+                    
+                    if (paymentInfo) {
+                        paymentInfo.style.display = 'none';
+                    }
+                    
+                    if (paymentStatusInfo) {
+                        paymentStatusInfo.innerHTML = `
+                            <div class="alert alert-warning mt-3">
+                                <i class="bi bi-wallet me-2"></i>
+                                Bạn sẽ thanh toán trực tiếp tại cửa hàng khi đến sửa xe.
+                            </div>
+                        `;
+                        paymentStatusInfo.style.display = 'block';
+                    }
+                }
+            }
+        });
+    });
+    
+    // Nếu chưa chọn, set mặc định
+    if (!paymentMethodSelected && updatedRadios.length > 0) {
+        updatedRadios[0].checked = true;
+        bookingData.paymentMethod = updatedRadios[0].value;
     }
+    
+    // Trigger change event cho radio đã checked để hiển thị UI
+    updatedRadios.forEach(radio => {
+        if (radio.checked) {
+            radio.dispatchEvent(new Event('change'));
+        }
+    });
+}
+
 
     // Thêm event listener cho nút "Tiếp tục" ở bước 4
     // Sử dụng một handler duy nhất cho nextToStep5
@@ -1569,37 +1925,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // === UTILITY FUNCTIONS ===
     
     /**
-     * Format số tiền thành VNĐ
-     */
-    function formatCurrency(amount) {
-        return new Intl.NumberFormat('vi-VN', { 
-            style: 'currency', 
-            currency: 'VND',
-            maximumFractionDigits: 0
-        }).format(amount);
-    }
-    
-    /**
-     * Format thời gian từ phút sang giờ:phút
-     */
-    function formatDuration(minutes) {
-        if (!minutes) return "0 phút";
-        
-        if (minutes < 60) {
-            return `${minutes} phút`;
-        }
-        
-        const hours = Math.floor(minutes / 60);
-        const remainingMinutes = minutes % 60;
-        
-        if (remainingMinutes === 0) {
-            return `${hours} giờ`;
-        }
-        
-        return `${hours} giờ ${remainingMinutes} phút`;
-    }
-    
-    /**
      * Format định dạng thời gian từ API
      * @param {string} timeStr Thời gian từ API (có thể là hh:mm:ss hoặc Date object)
      * @returns {string} Thời gian định dạng "HH:MM"
@@ -1723,4 +2048,207 @@ document.addEventListener('DOMContentLoaded', function() {
     // Xuất hàm ra global scope để có thể gọi từ bên ngoài (như nút Thử lại)
     window.loadServices = loadServices;
     window.loadAvailableTimeSlots = loadAvailableTimeSlots;
+
+
+    /**
+ * Gọi API lấy QR code thanh toán
+ */
+async function loadPaymentQR(totalAmount, appointmentId) {
+    try {
+        console.log(`💳 Loading QR: ID=${appointmentId}, Amount=${totalAmount}`);
+        
+        // Gọi API với appointmentId
+        const response = await fetch(`${PAYMENT_API_URL}/qr/${appointmentId}`);
+        
+        if (!response.ok) {
+            throw new Error('Không thể tải QR code');
+        }
+        
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.message || 'Lỗi tải QR');
+        }
+        
+        console.log('✅ QR loaded successfully');
+        return result.data;
+        
+    } catch (error) {
+        console.error('❌ Error loading QR:', error);
+        return null;
+    }
+}
+
+/**
+ * Hiển thị QR code trong paymentInfo div
+ */
+function displayPaymentQR(paymentData, totalAmount) {
+    const paymentInfo = document.getElementById('paymentInfo');
+    if (!paymentInfo) {
+        console.error('❌ Không tìm thấy element paymentInfo');
+        return;
+    }
+    
+    const formattedAmount = new Intl.NumberFormat('vi-VN', {
+        style: 'currency',
+        currency: 'VND'
+    }).format(totalAmount);
+    
+    // Tạo HTML với QR code
+    const html = `
+        <div class="payment-qr-section" style="background: #f8f9fa; padding: 20px; border-radius: 12px;">
+            <h5 class="text-primary mb-3">
+                <i class="bi bi-qr-code me-2"></i>
+                Quét mã QR để thanh toán
+            </h5>
+            
+            <!-- QR Code Image -->
+            <div class="text-center mb-4">
+                <img src="${paymentData.qrUrl}" 
+                     alt="QR Payment" 
+                     class="img-fluid"
+                     style="max-width: 280px; border: 2px solid #ddd; border-radius: 8px; padding: 10px; background: white;">
+                <p class="text-muted mt-2 mb-0">
+                    <small>
+                        <i class="bi bi-phone"></i>
+                        Quét mã này bằng app ngân hàng
+                    </small>
+                </p>
+            </div>
+            
+            <!-- Booking Code -->
+            <div class="alert alert-warning mb-3">
+                <strong>Mã đơn hàng:</strong> 
+                <span class="text-danger fw-bold fs-5">${paymentData.bookingCode}</span>
+            </div>
+            
+            <!-- Bank Info -->
+            <h6 class="mb-3">
+                <i class="bi bi-bank"></i>
+                Hoặc chuyển khoản thủ công
+            </h6>
+            
+            <ul class="list-unstyled">
+                <li class="mb-2">
+                    <strong>Ngân hàng:</strong> ${paymentData.bankInfo.bankName}
+                </li>
+                <li class="mb-2">
+                    <strong>Số tài khoản:</strong> 
+                    <span class="text-primary">${paymentData.bankInfo.accountNo}</span>
+                    <button class="btn btn-sm btn-outline-secondary ms-2" 
+                            onclick="copyPaymentText('${paymentData.bankInfo.accountNo}')">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+                </li>
+                <li class="mb-2">
+                    <strong>Chủ tài khoản:</strong> ${paymentData.bankInfo.accountName}
+                </li>
+                <li class="mb-2">
+                    <strong>Số tiền:</strong> 
+                    <span class="text-danger fw-bold">${formattedAmount}</span>
+                    <button class="btn btn-sm btn-outline-secondary ms-2" 
+                            onclick="copyPaymentText('${totalAmount}')">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+                </li>
+                <li class="mb-2">
+                    <strong>Nội dung CK:</strong> 
+                    <span class="text-primary fw-bold">${paymentData.bankInfo.transferContent}</span>
+                    <button class="btn btn-sm btn-outline-secondary ms-2" 
+                            onclick="copyPaymentText('${paymentData.bankInfo.transferContent}')">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+                </li>
+            </ul>
+            
+            <!-- Warning -->
+            <div class="alert alert-danger mt-3 mb-0">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>Quan trọng:</strong> Vui lòng nhập <strong>ĐÚNG nội dung</strong>: 
+                <code class="text-danger">${paymentData.bookingCode}</code> để chúng tôi xác nhận thanh toán.
+            </div>
+        </div>
+    `;
+    
+    paymentInfo.innerHTML = html;
+    paymentInfo.style.display = 'block';
+}
+
+/**
+ * Copy text to clipboard
+ */
+function copyPaymentText(text) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => {
+            showPaymentNotification('success', `Đã copy: ${text}`);
+        }).catch(err => {
+            console.error('Copy failed:', err);
+            showPaymentNotification('error', 'Không thể copy');
+        });
+    } else {
+        // Fallback cho trình duyệt cũ
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            showPaymentNotification('success', `Đã copy: ${text}`);
+        } catch (err) {
+            showPaymentNotification('error', 'Không thể copy');
+        }
+        document.body.removeChild(textarea);
+    }
+}
+
+/**
+ * Hiển thị notification toast
+ */
+function showPaymentNotification(type, message) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#28a745' : '#dc3545'};
+        color: white;
+        padding: 12px 20px;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        z-index: 9999;
+        font-size: 14px;
+        animation: slideInRight 0.3s ease;
+    `;
+    toast.innerHTML = `<i class="bi bi-${type === 'success' ? 'check-circle' : 'x-circle'} me-2"></i>${message}`;
+    
+    // Add animation styles
+    if (!document.getElementById('payment-toast-styles')) {
+        const style = document.createElement('style');
+        style.id = 'payment-toast-styles';
+        style.textContent = `
+            @keyframes slideInRight {
+                from { transform: translateX(400px); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOutRight {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(400px); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(toast);
+    
+    // Auto remove after 2.5s
+    setTimeout(() => {
+        toast.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => {
+            if (document.body.contains(toast)) {
+                document.body.removeChild(toast);
+            }
+        }, 300);
+    }, 2500);
+}
+    }
 });
