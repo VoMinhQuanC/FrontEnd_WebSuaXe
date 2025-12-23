@@ -1,5 +1,6 @@
 // js/common-header.js
 // File chung xử lý header và avatar cho TẤT CẢ các trang
+// IMPROVED VERSION - Debug logging và force styles mạnh hơn
 
 /**
  * Cập nhật thông tin người dùng trong header (TẤT CẢ TRANG)
@@ -10,12 +11,17 @@ function updateHeaderUserInfo(user) {
     const userAvatarSmall = document.getElementById('userAvatarSmall');
     const userNameSmall = document.getElementById('userNameSmall');
     
+    console.log('📝 [UPDATE UI] Updating header user info...');
+    
     if (userInfoHeader) {
         userInfoHeader.style.display = 'flex';
+        console.log('   ✓ Set userInfoHeader display: flex');
     }
     
     if (userNameSmall) {
-        userNameSmall.textContent = user.fullName || user.FullName || user.email || 'Người dùng';
+        const displayName = user.fullName || user.FullName || user.email || 'Người dùng';
+        userNameSmall.textContent = displayName;
+        console.log('   ✓ Set user name:', displayName);
     }
     
     if (userAvatarSmall) {
@@ -25,7 +31,7 @@ function updateHeaderUserInfo(user) {
         if (user.avatarUrl || user.AvatarUrl) {
             // Có avatar - Tạo thẻ img
             const imgElement = document.createElement('img');
-            imgElement.src = user.avatarUrl || user.AvatarUrl; // Dùng URL trực tiếp
+            imgElement.src = user.avatarUrl || user.AvatarUrl;
             imgElement.alt = 'Avatar';
             imgElement.className = 'rounded-circle';
             imgElement.style.width = '40px';
@@ -35,15 +41,16 @@ function updateHeaderUserInfo(user) {
             
             // Xử lý khi hình ảnh không tải được
             imgElement.onerror = function() {
-                console.error('Failed to load avatar:', user.avatarUrl);
-                // Fallback: Hiển thị chữ cái đầu
+                console.warn('⚠️ Failed to load avatar:', user.avatarUrl);
                 showAvatarPlaceholder(userAvatarSmall, user.fullName || user.FullName);
             };
             
             userAvatarSmall.appendChild(imgElement);
+            console.log('   ✓ Set avatar image:', user.avatarUrl || user.AvatarUrl);
         } else {
             // Không có avatar - Hiển thị chữ cái đầu
             showAvatarPlaceholder(userAvatarSmall, user.fullName || user.FullName);
+            console.log('   ✓ Set avatar placeholder');
         }
     }
 }
@@ -76,6 +83,7 @@ function showAvatarPlaceholder(container, fullName) {
 
 /**
  * Kiểm tra trạng thái đăng nhập và cập nhật header
+ * IMPROVED VERSION - với debug logging và force styles mạnh hơn
  */
 function initHeaderAuth() {
     const token = localStorage.getItem('token');
@@ -85,50 +93,94 @@ function initHeaderAuth() {
     const userInfoHeader = document.getElementById('userInfoHeader');
     const userDropdown = document.querySelector('.user-info-header');
     
-    console.log('🔍 Checking auth status:', { 
-        hasToken: !!token, 
-        hasUser: !!userStr 
-    });
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🔍 [AUTH CHECK] Checking login status...');
+    console.log('   Token exists:', !!token);
+    console.log('   User data exists:', !!userStr);
+    console.log('   authButtons element:', !!authButtons);
+    console.log('   userInfoHeader element:', !!userInfoHeader);
     
     if (token && userStr) {
         try {
             const user = JSON.parse(userStr);
-            console.log('✅ User logged in:', user.fullName || user.FullName);
+            console.log('✅ [AUTH SUCCESS] User logged in:');
+            console.log('   Name:', user.fullName || user.FullName);
+            console.log('   Email:', user.email);
+            console.log('   Role:', user.role);
             
-            // Ẩn NÚT ĐĂNG NHẬP (tất cả các cách có thể)
+            // ẨN NÚT ĐĂNG NHẬP - FORCE với multiple methods
             if (authButtons) {
-                authButtons.style.cssText = 'display: none !important';
+                authButtons.style.cssText = 'display: none !important; visibility: hidden !important;';
+                authButtons.classList.add('d-none');
+                console.log('   ✓ Hidden authButtons');
             }
             if (loginBtn) {
-                loginBtn.style.cssText = 'display: none !important';
+                loginBtn.style.cssText = 'display: none !important; visibility: hidden !important;';
+                loginBtn.classList.add('d-none');
+                console.log('   ✓ Hidden loginBtn');
             }
             
-            // Hiện thông tin user và cập nhật avatar
+            // HIỆN THÔNG TIN USER - FORCE với multiple methods
             if (userInfoHeader) {
-                userInfoHeader.style.cssText = 'display: flex !important';
+                userInfoHeader.style.cssText = 'display: flex !important; visibility: visible !important;';
+                userInfoHeader.classList.remove('d-none');
+                console.log('   ✓ Shown userInfoHeader');
             }
             if (userDropdown) {
-                userDropdown.style.cssText = 'display: flex !important';
+                userDropdown.style.cssText = 'display: flex !important; visibility: visible !important;';
+                userDropdown.classList.remove('d-none');
+                console.log('   ✓ Shown userDropdown');
             }
             
-            // Cập nhật avatar
+            // Cập nhật avatar và tên
             updateHeaderUserInfo(user);
+            console.log('   ✓ Updated avatar and name');
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
             
         } catch (error) {
-            console.error('❌ Error parsing user data:', error);
+            console.error('❌ [AUTH ERROR] Failed to parse user data:', error);
+            console.error('   User string:', userStr);
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            
             // Hiện nút đăng nhập nếu lỗi
-            if (authButtons) authButtons.style.cssText = 'display: flex !important';
-            if (loginBtn) loginBtn.style.cssText = 'display: block !important';
-            if (userInfoHeader) userInfoHeader.style.cssText = 'display: none !important';
-            if (userDropdown) userDropdown.style.cssText = 'display: none !important';
+            if (authButtons) {
+                authButtons.style.cssText = 'display: flex !important; visibility: visible !important;';
+                authButtons.classList.remove('d-none');
+            }
+            if (loginBtn) {
+                loginBtn.style.cssText = 'display: block !important; visibility: visible !important;';
+                loginBtn.classList.remove('d-none');
+            }
+            if (userInfoHeader) {
+                userInfoHeader.style.cssText = 'display: none !important; visibility: hidden !important;';
+                userInfoHeader.classList.add('d-none');
+            }
+            if (userDropdown) {
+                userDropdown.style.cssText = 'display: none !important; visibility: hidden !important;';
+                userDropdown.classList.add('d-none');
+            }
         }
     } else {
         // Chưa đăng nhập
-        console.log('⚠️ User not logged in');
-        if (authButtons) authButtons.style.cssText = 'display: flex !important';
-        if (loginBtn) loginBtn.style.cssText = 'display: block !important';
-        if (userInfoHeader) userInfoHeader.style.cssText = 'display: none !important';
-        if (userDropdown) userDropdown.style.cssText = 'display: none !important';
+        console.log('⚠️ [AUTH] User NOT logged in');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        
+        if (authButtons) {
+            authButtons.style.cssText = 'display: flex !important; visibility: visible !important;';
+            authButtons.classList.remove('d-none');
+        }
+        if (loginBtn) {
+            loginBtn.style.cssText = 'display: block !important; visibility: visible !important;';
+            loginBtn.classList.remove('d-none');
+        }
+        if (userInfoHeader) {
+            userInfoHeader.style.cssText = 'display: none !important; visibility: hidden !important;';
+            userInfoHeader.classList.add('d-none');
+        }
+        if (userDropdown) {
+            userDropdown.style.cssText = 'display: none !important; visibility: hidden !important;';
+            userDropdown.classList.add('d-none');
+        }
     }
 }
 
@@ -164,7 +216,7 @@ function toggleSearch() {
 
 // Chạy khi DOM loaded
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('📄 DOM Content Loaded - Initializing header auth');
+    console.log('📄 [DOM] Content Loaded - Initializing header auth');
     initHeaderAuth();
     
     // Xử lý logout button
@@ -174,13 +226,22 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             handleLogout();
         });
+        console.log('   ✓ Logout button listener added');
     }
 });
 
 // Force chạy lại sau khi page load xong (tránh race condition)
 window.addEventListener('load', function() {
-    console.log('🔄 Window Loaded - Re-checking header auth');
+    console.log('🌐 [WINDOW] Loaded - Re-checking header auth');
     setTimeout(function() {
         initHeaderAuth();
     }, 100);
 });
+
+// Export functions cho global scope
+window.initHeaderAuth = initHeaderAuth;
+window.updateHeaderUserInfo = updateHeaderUserInfo;
+window.handleLogout = handleLogout;
+window.toggleSearch = toggleSearch;
+
+console.log('✅ [COMMON-HEADER] Module loaded successfully');

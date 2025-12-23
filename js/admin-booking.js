@@ -926,12 +926,16 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (data.success) {
                 // Đóng modal xác nhận
-                const confirmModal = bootstrap.Modal.getInstance(document.getElementById('confirmCancelModal'));
-                confirmModal.hide();
+                const confirmModal = bootstrap.Modal.getInstance(document.getElementById('confirmCompleteModal'));
+                    if (confirmModal) {
+                        confirmModal.hide();
+                    }
                 
                 // Đóng modal chi tiết nếu đang mở
-                const detailModal = bootstrap.Modal.getInstance(document.getElementById('bookingDetailModal'));
-                detailModal.hide();
+                 const detailModal = bootstrap.Modal.getInstance(document.getElementById('bookingDetailModal'));
+                    if (detailModal) {
+                        detailModal.hide();
+                    }
                 
                 // Hiển thị thông báo thành công
                 showSuccessMessage('Hủy lịch hẹn thành công');
@@ -1063,12 +1067,16 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (data.success) {
                 // Đóng modal xác nhận
-                const confirmModal = bootstrap.Modal.getInstance(document.getElementById('confirmCompleteModal'));
-                confirmModal.hide();
+               const confirmModal = bootstrap.Modal.getInstance(document.getElementById('confirmCompleteModal'));
+                if (confirmModal) {
+                    confirmModal.hide();
+                }
                 
                 // Đóng modal chi tiết nếu đang mở
                 const detailModal = bootstrap.Modal.getInstance(document.getElementById('bookingDetailModal'));
-                detailModal.hide();
+                if (detailModal) {
+                    detailModal.hide();
+                }
                 
                 // Hiển thị thông báo thành công
                 showSuccessMessage('Đã đánh dấu lịch hẹn là hoàn thành');
@@ -1171,8 +1179,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 // Đóng modal
                 const modal = bootstrap.Modal.getInstance(document.getElementById('bookingDetailModal'));
-                modal.hide();
-                
+                if (modal) {
+                    modal.hide();
+                }
+                                
                 // Hiển thị thông báo thành công
                 showSuccessMessage('Cập nhật lịch hẹn thành công');
                 

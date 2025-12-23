@@ -614,9 +614,21 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('scheduleDate').value = formatDateForInput(tomorrow);
         }
         
-        // Cập nhật tiêu đề modal
-        document.getElementById('scheduleModalLabel').textContent = 'Đăng ký lịch làm việc mới';
-        document.getElementById('saveBtnText').textContent = 'Lưu lịch';
+        // ✅ FIX: Cập nhật tiêu đề modal (with null checks)
+        const modalLabel = document.getElementById('scheduleModalLabel');
+        const saveBtnText = document.getElementById('saveBtnText');
+        
+        if (modalLabel) {
+            modalLabel.textContent = 'Đăng ký lịch làm việc mới';
+        } else {
+            console.error('❌ Element scheduleModalLabel not found');
+        }
+        
+        if (saveBtnText) {
+            saveBtnText.textContent = 'Lưu lịch';
+        } else {
+            console.error('❌ Element saveBtnText not found');
+        }
         
         // Đặt chế độ thêm mới
         isEditMode = false;

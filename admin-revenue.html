@@ -23,6 +23,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <!-- CSS chung Admin -->
     <link rel="stylesheet" href="css/admin.css">
+    <link rel="stylesheet" href="css/notification-admin.css">
     <!-- CSS riêng cho trang Doanh thu -->
     <link rel="stylesheet" href="css/admin-revenue.css">
 
@@ -96,18 +97,64 @@
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2">Thống kê Doanh thu</h1>
-                    <div class="user-info d-flex align-items-center">
-                        <span class="me-2" id="adminName">Admin</span>
+                    <div class="user-info d-flex align-items-center gap-3">
+                        <span id="adminName">Admin</span>
+                        
                         <div class="dropdown">
                             <a href="#" class="d-block link-dark text-decoration-none dropdown-toggle" id="dropdownUser" data-bs-toggle="dropdown" aria-expanded="false">
-                                <div class="avatar-placeholder" id="avatarPlaceholder">A</div>
+                                <div class="avatar-placeholder" id="avatarPlaceholder"></div>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end text-small" aria-labelledby="dropdownUser">
                                 <li><a class="dropdown-item" href="index.html">Trang chủ</a></li>
                                 <li><a class="dropdown-item" href="profile.html">Thông tin tài khoản</a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="#" id="dropdown-logout">Đăng xuất</a></li>
+                                <li><a class="dropdown-item" href="index.html" id="dropdown-logout">Đăng xuất</a></li>
                             </ul>
+                        </div>
+                        
+                        <!-- Notification Bell - AFTER AVATAR -->
+                        <div class="notification-bell">
+                            <button class="bell-button" id="notificationBell">
+                                <svg class="bell-icon" viewBox="0 0 24 24">
+                                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                                </svg>
+                                <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+                            </button>
+                            
+                            <div class="notification-dropdown" id="notificationDropdown">
+                                <div class="dropdown-header">
+                                    <h3>Thông báo</h3>
+                                </div>
+                                
+                                <div class="notification-tabs">
+                                    <button class="tab-button active" data-tab="all">Tất cả</button>
+                                    <button class="tab-button" data-tab="unread">
+                                        Chưa đọc <span class="tab-count" id="unreadTabCount"></span>
+                                    </button>
+                                </div>
+                                
+                                <div class="notifications-list" id="notificationsList">
+                                    <div class="loading" id="loadingState">
+                                        <div class="spinner"></div>
+                                        <p>Đang tải...</p>
+                                    </div>
+                                    
+                                    <div class="empty-state" id="emptyState" style="display: none;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                                        </svg>
+                                        <p>Không có thông báo</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="dropdown-footer">
+                                    <button class="mark-all-read" id="markAllRead">
+                                        Đánh dấu tất cả đã đọc
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -321,5 +368,7 @@
     <!-- Admin Revenue JS -->
     <script src="js/config.js"></script>
     <script src="js/admin-revenue.js"></script>
+    <!-- Notification Bell Script -->
+    <script src="js/notification-admin.js"></script>
 </body>
 </html>

@@ -150,6 +150,14 @@ console.log('API Configuration loaded:', {
     environment: location.hostname === 'localhost' || location.hostname === '127.0.0.1' ? 'development' : 'production'
 });
 
+// ============================================================
+// ⭐ FIX: EXPOSE API_BASE_URL RA GLOBAL SCOPE
+// ============================================================
+// Để các file khác (như booking.js) có thể sử dụng
+window.API_BASE_URL = API_BASE_URL;
+
 // Export cho sử dụng global
 window.API_CONFIG = API_CONFIG;
 window.API_UTILS = API_UTILS;
+
+console.log('✅ API_BASE_URL exposed to global scope:', API_BASE_URL);

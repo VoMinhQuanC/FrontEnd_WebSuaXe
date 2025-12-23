@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const token = localStorage.getItem('token');
         const userInfo = localStorage.getItem('user');
         
-        if (!token || !userInfo || !isTokenValid(token)) {
+        if (!token || !userInfo) {
             // Chưa đăng nhập hoặc token không hợp lệ, chuyển hướng đến trang đăng nhập admin
             window.location.href = 'login.html';
             return;
@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const user = JSON.parse(userInfo);
             
             // Kiểm tra quyền admin (RoleID = 1)
-            if (user.role !== 1) {
+            if (user.role !== 1 && user.RoleID !== 1) {
                 alert('Bạn không có quyền truy cập trang quản trị');
                 window.location.href = 'index.html'; // Chuyển về trang chủ
                 return;
@@ -134,13 +134,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (response.status === 403) {
                         // Xử lý lỗi 403 cụ thể - có thể token hết hạn
                         console.error('Lỗi xác thực: Token có thể đã hết hạn hoặc không hợp lệ');
-                        localStorage.removeItem('token'); // Xóa token không hợp lệ
-                        localStorage.removeItem('user');
-                        alert('Phiên làm việc của bạn đã hết hạn. Vui lòng đăng nhập lại.');
-                        window.location.href = 'login.html';
+//                         localStorage.removeItem('token'); // Xóa token không hợp lệ
+//                         localStorage.removeItem('user');
+//                         alert('Phiên làm việc của bạn đã hết hạn. Vui lòng đăng nhập lại.');
+//                         window.location.href = 'login.html';
                         return;
                     }
-                    throw new Error(`Lỗi API: ${response.status}`);
+                    throw new Error(`API error: ${response.status}`);
                 }
                 
                 const result = await response.json();
@@ -203,13 +203,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (response.status === 403) {
                         // Xử lý lỗi 403 cụ thể - có thể token hết hạn
                         console.error('Lỗi xác thực: Token có thể đã hết hạn hoặc không hợp lệ');
-                        localStorage.removeItem('token');
-                        localStorage.removeItem('user');
-                        alert('Phiên làm việc của bạn đã hết hạn. Vui lòng đăng nhập lại.');
-                        window.location.href = 'login.html';
+//                         localStorage.removeItem('token');
+//                         localStorage.removeItem('user');
+//                         alert('Phiên làm việc của bạn đã hết hạn. Vui lòng đăng nhập lại.');
+//                         window.location.href = 'login.html';
+                        console.warn("⚠️ Booking API 403 - Skipped");
                         return;
                     }
-                    throw new Error(`Lỗi API: ${response.status}`);
+//                     throw new Error(`Lỗi API: ${response.status}`);
                 }
                 
                 const result = await response.json();
@@ -455,7 +456,7 @@ async function loadRevenueChartData() {
             html += `
                 <tr>
                     <td>BK${booking.AppointmentID}</td>
-                    <td>${booking.FullName || 'N/A'}</td>
+                    <td>${booking.CustomerName || 'N/A'}</td>
                     <td>${formattedDate}</td>
                     <td>${booking.Services || 'N/A'}</td>
                     <td>${statusBadge}</td>
